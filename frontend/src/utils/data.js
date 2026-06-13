@@ -1,0 +1,193 @@
+import { boutiqueImages } from "../assets/images.js";
+
+export const outfitOptions = [
+  {
+    id: "blouse",
+    title: "Blouse",
+    image: boutiqueImages.blouse,
+    basePrice: 1600,
+    description: "Custom saree blouse stitching with precise neck, sleeve, and fitting choices.",
+  },
+  {
+    id: "kurti",
+    title: "Kurti",
+    image: boutiqueImages.kurti,
+    basePrice: 1900,
+    description: "Everyday or occasion-ready kurtis shaped to your measurements.",
+  },
+  {
+    id: "long-frock",
+    title: "Long Frock",
+    image: boutiqueImages.frock,
+    basePrice: 2600,
+    description: "Flowing long frocks with premium finishing and elegant silhouettes.",
+  },
+  {
+    id: "lehenga",
+    title: "Lehenga",
+    image: boutiqueImages.lehenga,
+    basePrice: 5200,
+    description: "Statement lehengas with structured fitting, lining, and optional handwork.",
+  },
+];
+
+export const trendingDesigns = [
+  {
+    title: "Trending Neck Designs",
+    image: boutiqueImages.neck,
+    description: "Boat, V, collar, and deep-neck styles finished for your outfit type.",
+  },
+  {
+    title: "Sleeve Styles",
+    image: boutiqueImages.sleeve,
+    description: "Puff, short, elbow, and sleeveless patterns with comfortable arm movement.",
+  },
+  {
+    title: "Bridal Patterns",
+    image: boutiqueImages.bridal,
+    description: "Occasion wear with rich texture, lining, tassels, and embroidery options.",
+  },
+];
+
+export const boutiqueProducts = [
+  {
+    id: "product-blouse-001",
+    name: "Designer Blouse Stitching",
+    category: "Blouse",
+    price: 1600,
+    stock: 18,
+    image: boutiqueImages.blouse,
+    description: "Premium blouse stitching with custom neck, sleeve, lining, and fitting options.",
+  },
+  {
+    id: "product-kurti-001",
+    name: "Elegant Kurti Stitching",
+    category: "Kurti",
+    price: 1900,
+    stock: 24,
+    image: boutiqueImages.kurti,
+    description: "Comfortable daily or festive kurti stitching based on exact body measurements.",
+  },
+  {
+    id: "product-frock-001",
+    name: "Long Frock Stitching",
+    category: "Long Frock",
+    price: 2600,
+    stock: 12,
+    image: boutiqueImages.frock,
+    description: "Flowing long frock design with graceful fall, neat finish, and modern silhouette.",
+  },
+  {
+    id: "product-lehenga-001",
+    name: "Bridal Lehenga Stitching",
+    category: "Lehenga",
+    price: 5200,
+    stock: 8,
+    image: boutiqueImages.lehenga,
+    description: "Occasion-ready lehenga stitching with lining, embroidery, tassels, and structured fit.",
+  },
+];
+
+export const sampleFabrics = [
+  { name: "Silk Cloth", image: boutiqueImages.fabricSilk },
+  { name: "Cotton Print", image: boutiqueImages.fabricCotton },
+  { name: "Embroidery Cloth", image: boutiqueImages.fabricEmbroidery },
+];
+
+export const commonMeasurementFields = [
+  { name: "Bust", key: "bust" },
+  { name: "Waist", key: "waist" },
+  { name: "Shoulder", key: "shoulder" },
+  { name: "Sleeve Length", key: "sleeveLength" },
+  { name: "Neck Depth", key: "neckDepth" },
+];
+
+export const measurementFieldsByOutfit = {
+  blouse: [
+    { name: "Chest Round", key: "chestRound" },
+    { name: "Under Bust", key: "underBust" },
+    { name: "Waist", key: "waist" },
+    { name: "Blouse Length", key: "blouseLength" },
+    { name: "Shoulder", key: "shoulder" },
+    { name: "Sleeve Length", key: "sleeveLength" },
+    { name: "Arm Hole", key: "armHole" },
+    { name: "Neck Depth", key: "neckDepth" },
+    { name: "Sleeve Opening", key: "sleeveOpening" },
+  ],
+  kurti: [
+    { name: "Bust", key: "bust" },
+    { name: "Waist", key: "waist" },
+    { name: "Hip", key: "hip" },
+    { name: "Shoulder", key: "shoulder" },
+    { name: "Sleeve Length", key: "sleeveLength" },
+    { name: "Arm Round", key: "armRound" },
+    { name: "Dress Length", key: "dressLength" },
+    { name: "Neck Depth", key: "neckDepth" },
+  ],
+  "long-frock": [
+    { name: "Bust", key: "bust" },
+    { name: "Waist", key: "waist" },
+    { name: "Hip", key: "hip" },
+    { name: "Shoulder", key: "shoulder" },
+    { name: "Sleeve Length", key: "sleeveLength" },
+    { name: "Arm Round", key: "armRound" },
+    { name: "Dress Length", key: "dressLength" },
+    { name: "Neck Depth", key: "neckDepth" },
+  ],
+  lehenga: [
+    { name: "Bust", key: "bust" },
+    { name: "Waist", key: "waist" },
+    { name: "Hip", key: "hip" },
+    { name: "Shoulder", key: "shoulder" },
+    { name: "Sleeve Length", key: "sleeveLength" },
+    { name: "Arm Round", key: "armRound" },
+    { name: "Dress Length", key: "dressLength" },
+    { name: "Neck Depth", key: "neckDepth" },
+  ],
+};
+
+export const measureInstructions = {
+  bust: "Measure around the fullest part of the bust while keeping the tape level.",
+  chestRound: "Measure around the chest at the fullest point without tightening the tape.",
+  underBust: "Measure directly under the bust where the blouse lower band sits.",
+  waist: "Measure around the natural waistline, usually the narrowest part of the torso.",
+  hip: "Measure around the fullest part of the hips while standing straight.",
+  shoulder: "Measure from one shoulder tip to the other across the back.",
+  sleeveLength: "Measure from the shoulder tip to the desired sleeve ending point.",
+  armRound: "Measure around the fullest part of the upper arm.",
+  armHole: "Wrap the tape around the shoulder joint and underarm comfortably.",
+  dressLength: "Measure from the shoulder point down to the desired dress length.",
+  blouseLength: "Measure from the shoulder near the neck down to the blouse ending point.",
+  neckDepth: "Measure from the shoulder neckline down to the desired front neck depth.",
+  sleeveOpening: "Measure around the point where the sleeve should end.",
+};
+
+export const neckStyles = ["Boat Neck", "V Neck", "Collar Neck", "Deep Neck"];
+export const sleeveStyles = ["Puff Sleeve", "Short Sleeve", "Elbow Sleeve", "Sleeveless"];
+export const fittingOptions = ["Tight Fit", "Regular Fit", "Loose Fit"];
+export const extraOptions = ["Lining", "Padding", "Tassels", "Embroidery"];
+export const orderStatusOptions = ["Order Received", "Cutting", "Stitching", "Ready", "Delivered"];
+
+export const defaultFeedback = [
+  {
+    id: "seed-1",
+    name: "Anika",
+    outfitType: "Blouse",
+    rating: 5,
+    message: "The fitting was clean and the sleeve finish looked premium.",
+  },
+  {
+    id: "seed-2",
+    name: "Meera",
+    outfitType: "Lehenga",
+    rating: 5,
+    message: "Loved the fabric preview and the final order summary.",
+  },
+  {
+    id: "seed-3",
+    name: "Riya",
+    outfitType: "Kurti",
+    rating: 4,
+    message: "Easy measurement flow and very neat customization choices.",
+  },
+];
