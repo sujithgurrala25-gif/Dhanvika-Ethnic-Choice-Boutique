@@ -1,4 +1,4 @@
-function normalizeWhatsAppPhone(phone) {
+export function normalizeWhatsAppPhone(phone) {
   const digits = String(phone || "").replace(/\D/g, "");
 
   if (digits.length === 10) {

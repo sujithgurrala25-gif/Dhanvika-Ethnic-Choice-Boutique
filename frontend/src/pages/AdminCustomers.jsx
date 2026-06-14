@@ -6,6 +6,7 @@ import { fetchUsers } from "../services/userService.js";
 import { fetchOrders } from "../services/orderService.js";
 import { formatPrice } from "../utils/pricing.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
+import { normalizeWhatsAppPhone } from "../utils/whatsapp.js";
 
 export default function AdminCustomers() {
   const { user } = useAuth();
@@ -185,7 +186,7 @@ export default function AdminCustomers() {
                 <div className="flex justify-end gap-2">
                   {customer.phone ? (
                     <a
-                      href={`https://wa.me/${customer.phone.replace(/[^0-9]/g, "")}`}
+                      href={`https://wa.me/${normalizeWhatsAppPhone(customer.phone)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-primary inline-flex items-center gap-2 text-xs bg-green-600 hover:bg-green-700 text-white w-full md:w-auto justify-center"

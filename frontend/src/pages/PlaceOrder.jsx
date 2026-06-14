@@ -16,7 +16,7 @@ export default function PlaceOrder() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successOrder, setSuccessOrder] = useState(null);
-  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerPhone, setCustomerPhone] = useState(user?.phone || "");
   const [phoneError, setPhoneError] = useState("");
   const price = estimatePrice(draft.selectedOutfit?.id, draft.customization);
   const orderDate = new Date();

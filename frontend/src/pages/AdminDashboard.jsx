@@ -199,11 +199,41 @@ export default function AdminDashboard() {
     setOfflineForm(emptyOfflineForm);
   }
 
+  function getCustomerPhone(order) {
+    if (!order) return "";
+    const directPhone = order.customer_phone || order.customerPhone || order.phone;
+    if (directPhone) return directPhone;
+
+    // Fallback: look up in customers list by email or user_id
+    const email = (order.customer_email || order.customerEmail || order.user_email || order.userEmail || "").toLowerCase();
+    if (email) {
+      const cust = customers.find((c) => c.email?.toLowerCase() === email);
+      if (cust?.phone) return cust.phone;
+    }
+
+    if (order.user_id && order.user_id !== "offline") {
+      const cust = customers.find((c) => c.id === order.user_id || c.uid === order.user_id);
+      if (cust?.phone) return cust.phone;
+    }
+
+    return "";
+  }
+
   async function handleOfflineSubmit(event) {
     event.preventDefault();
     setWhatsAppStatus(null);
 
+    const digits = offlineForm.customerPhone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      setWhatsAppStatus({
+        type: "error",
+        message: "Please enter a valid 10-digit customer mobile number.",
+      });
+      return;
+    }
+
     try {
+      const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
       const payload = {
         outfit_type: offlineForm.outfitCategory,
         outfit_title: offlineForm.outfitTitle.trim() || `${offlineForm.outfitCategory} - Custom`,
@@ -215,7 +245,7 @@ export default function AdminDashboard() {
         fabric_image: offlineForm.fabricImage.trim() || boutiqueImages.intro,
         customer_name: offlineForm.customerName.trim(),
         customer_email: offlineForm.customerEmail.trim(),
-        customer_phone: offlineForm.customerPhone.trim(),
+        customer_phone: formattedPhone,
       };
 
       const data = await createOrder(payload);
@@ -235,8 +265,20 @@ export default function AdminDashboard() {
       setOrders((prev) => [newOrder, ...prev]);
       resetOfflineForm();
 
-      window.open(buildWhatsAppOrderLink(orderForWA), "_blank", "noopener,noreferrer");
-      setWhatsAppStatus({ type: "success", message: "Order saved and WhatsApp opened to the customer's number." });
+      try {
+        const waLink = buildWhatsAppOrderLink(orderForWA);
+        window.open(waLink, "_blank", "noopener,noreferrer");
+        setWhatsAppStatus({
+          type: "success",
+          message: "Order saved. Click below to open WhatsApp if it did not open automatically.",
+          link: waLink,
+        });
+      } catch (waErr) {
+        setWhatsAppStatus({
+          type: "success",
+          message: `Order saved. (WhatsApp Error: ${waErr.message})`,
+        });
+      }
     } catch (err) {
       setWhatsAppStatus({ type: "error", message: err.message || "Failed to save order." });
     }
@@ -244,17 +286,23 @@ export default function AdminDashboard() {
 
   function handleSendWhatsApp(order) {
     try {
+      const phone = getCustomerPhone(order);
       const orderForWA = {
         ...order,
         outfit: order.outfit || { title: order.outfit_type },
         fabricImage: order.fabric_image,
-        customerName: order.customer_name,
-        customerPhone: order.customer_phone,
+        customerName: order.customer_name || order.customerName || order.user_name || "Customer",
+        customerPhone: phone,
         customization: order.customization,
         price: order.price || order.total_price,
       };
-      window.open(buildWhatsAppOrderLink(orderForWA), "_blank", "noopener,noreferrer");
-      setWhatsAppStatus({ type: "success", message: "WhatsApp opened to the customer's number with order details." });
+      const waLink = buildWhatsAppOrderLink(orderForWA);
+      window.open(waLink, "_blank", "noopener,noreferrer");
+      setWhatsAppStatus({
+        type: "success",
+        message: "WhatsApp link generated. Click below to open chat if it did not open automatically.",
+        link: waLink,
+      });
     } catch (err) {
       setWhatsAppStatus({ type: "error", message: `Could not open WhatsApp: ${err.message}` });
     }
@@ -430,19 +478,25 @@ export default function AdminDashboard() {
       const updatedOrder = data.order;
       setOrders((prev) => prev.map((o) => o.id === orderId ? updatedOrder : o));
 
-      if (status === "Ready" && updatedOrder.customer_phone) {
+      const phone = getCustomerPhone(updatedOrder);
+      if (status === "Ready" && phone) {
         const orderForWA = {
           ...updatedOrder,
           outfit: updatedOrder.outfit || { title: updatedOrder.outfit_type },
           fabricImage: updatedOrder.fabric_image,
-          customerName: updatedOrder.customer_name,
-          customerPhone: updatedOrder.customer_phone,
+          customerName: updatedOrder.customer_name || updatedOrder.customerName || updatedOrder.user_name || "Customer",
+          customerPhone: phone,
           customization: updatedOrder.customization,
           price: updatedOrder.price,
         };
         const readyMessage = buildWhatsAppReadyMessage(orderForWA);
-        window.open(buildWhatsAppOrderLink(orderForWA, readyMessage), "_blank", "noopener,noreferrer");
-        setWhatsAppStatus({ type: "success", message: `Order ${orderId} marked as Ready. WhatsApp opened to notify the customer.` });
+        const waLink = buildWhatsAppOrderLink(orderForWA, readyMessage);
+        window.open(waLink, "_blank", "noopener,noreferrer");
+        setWhatsAppStatus({
+          type: "success",
+          message: `Order ${orderId} marked as Ready. Click below to notify customer via WhatsApp if it did not open automatically.`,
+          link: waLink,
+        });
       }
     } catch (err) {
       console.error("Status update error:", err);
@@ -914,6 +968,32 @@ export default function AdminDashboard() {
           <div className="border-b border-plum/10 p-5">
             <h2 className="font-display text-2xl font-bold text-plum">Active Orders</h2>
           </div>
+          {whatsAppStatus && (
+            <div className={`m-5 rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
+              whatsAppStatus.type === "success" ? "bg-green-50 text-green-700" : "bg-rose/10 text-rose"
+            }`}>
+              <div className="flex justify-between items-center gap-4">
+                <p>{whatsAppStatus.message}</p>
+                <button
+                  type="button"
+                  onClick={() => setWhatsAppStatus(null)}
+                  className="text-current opacity-70 hover:opacity-100 text-xs font-bold"
+                >
+                  Dismiss
+                </button>
+              </div>
+              {whatsAppStatus.link && (
+                <a
+                  href={whatsAppStatus.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary py-1.5 px-3 text-xs w-fit bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5"
+                >
+                  <MessageCircle size={14} /> Open WhatsApp Chat
+                </a>
+              )}
+            </div>
+          )}
           {activeOrders.length ? (
             <div className="divide-y divide-plum/10">
               {activeOrders.map((order) => (
@@ -943,13 +1023,13 @@ export default function AdminDashboard() {
                     {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
                       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <Info label="Price"   value={formatPrice(order.price)} />
-                        <Info label="Phone"   value={order.customer_phone || order.customerPhone || "N/A"} />
+                        <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
                         <Info label="Type"    value="Ready-made Product" />
                       </div>
                     ) : (
                       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <Info label="Price"   value={formatPrice(order.price)} />
-                        <Info label="Phone"   value={order.customer_phone || order.customerPhone || "N/A"} />
+                        <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
                         <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
                         <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
                         <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
@@ -1044,11 +1124,21 @@ export default function AdminDashboard() {
               </div>
 
               {whatsAppStatus && (
-                <p className={`rounded-md px-4 py-3 text-sm font-semibold ${
+                <div className={`rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
                   whatsAppStatus.type === "success" ? "bg-green-50 text-green-700" : "bg-rose/10 text-rose"
                 }`}>
-                  {whatsAppStatus.message}
-                </p>
+                  <p>{whatsAppStatus.message}</p>
+                  {whatsAppStatus.link && (
+                    <a
+                      href={whatsAppStatus.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary py-1.5 px-3 text-xs w-fit bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5"
+                    >
+                      <MessageCircle size={14} /> Open WhatsApp Chat
+                    </a>
+                  )}
+                </div>
               )}
             </div>
           </form>
@@ -1101,13 +1191,13 @@ export default function AdminDashboard() {
                   {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
                     <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       <Info label="Price"   value={formatPrice(order.price)} />
-                      <Info label="Phone"   value={order.customer_phone || order.customerPhone || "N/A"} />
+                      <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
                       <Info label="Type"    value="Ready-made Product" />
                     </div>
                   ) : (
                     <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       <Info label="Price"   value={formatPrice(order.price)} />
-                      <Info label="Phone"   value={order.customer_phone || order.customerPhone || "N/A"} />
+                      <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
                       <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
                       <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
                       <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />

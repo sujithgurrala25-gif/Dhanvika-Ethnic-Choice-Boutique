@@ -9,6 +9,7 @@ import {
   ShoppingCart,
   Sparkles,
   UserRound,
+  Phone,
 } from "lucide-react";
 import EmptyState from "../components/EmptyState.jsx";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
@@ -53,6 +54,8 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState("browse");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cartPhone, setCartPhone] = useState(user?.phone || "");
+  const [cartPhoneError, setCartPhoneError] = useState("");
 
   useEffect(() => {
     async function loadAll() {
@@ -143,8 +146,16 @@ export default function UserDashboard() {
   const cartTotal = cart.reduce((sum, item) => sum + (item.price || 0), 0);
 
   async function handlePlaceCartOrder() {
+    const digits = cartPhone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      setCartPhoneError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    setCartPhoneError("");
+
     try {
       setLoading(true);
+      const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
       await Promise.all(
         cart.map((item) =>
           createOrder({
@@ -155,6 +166,7 @@ export default function UserDashboard() {
             status: "Order Received",
             customer_name: user.name,
             customer_email: user.email,
+            customer_phone: formattedPhone,
           })
         )
       );
@@ -319,6 +331,31 @@ export default function UserDashboard() {
                 onAction={(product) => handleRemoveFromCart(product.id)}
               />
               <div className="mt-8 flex flex-col items-end gap-3 border-t border-plum/10 pt-6">
+                <div className="w-full max-w-sm mb-2 text-left">
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    <span className="flex items-center gap-2">
+                      <Phone size={15} />
+                      WhatsApp Mobile Number
+                    </span>
+                    <input
+                      className="input-field"
+                      type="tel"
+                      value={cartPhone}
+                      onChange={(e) => {
+                        setCartPhone(e.target.value);
+                        setCartPhoneError("");
+                      }}
+                      placeholder="e.g. 9876543210"
+                      required
+                      maxLength={15}
+                    />
+                  </label>
+                  {cartPhoneError && (
+                    <p className="mt-2 rounded-md bg-rose/10 px-4 py-2 text-xs font-semibold text-rose">
+                      {cartPhoneError}
+                    </p>
+                  )}
+                </div>
                 <p className="text-xl font-bold text-plum">
                   Total Price: <span className="text-rose">{formatPrice(cartTotal)}</span>
                 </p>
