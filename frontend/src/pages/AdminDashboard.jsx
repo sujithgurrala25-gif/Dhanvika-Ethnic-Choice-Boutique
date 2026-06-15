@@ -313,7 +313,6 @@ export default function AdminDashboard() {
     const productData = {
       name: form.name,
       category: form.category,
-      price: Number(form.price),
       stock: Number(form.stock),
       image_url: form.image || boutiqueImages.intro,
       description: form.description,
@@ -589,10 +588,6 @@ export default function AdminDashboard() {
               </label>
             </div>
 
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Price
-              <input className="input-field" type="number" min="1" name="price" value={form.price} onChange={handleFormChange} required />
-            </label>
 
             <label className="grid gap-2 text-sm font-bold text-plum">
               Image URL
@@ -633,7 +628,6 @@ export default function AdminDashboard() {
                         <p className="mt-1 text-sm leading-6 text-ink/65">{product.description}</p>
                       </div>
                       <div className="shrink-0 text-left sm:text-right">
-                        <p className="text-lg font-bold text-rose">{formatPrice(product.price)}</p>
                         <p className="text-xs font-bold uppercase text-ink/50">Stock: {product.stock}</p>
                       </div>
                     </div>

@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  Award,
   CalendarCheck,
+  Clock,
   Scissors,
   Sparkles,
   Star,
 } from "lucide-react";
 import { boutiqueImages } from "../assets/images.js";
+import designerSketchbook from "../assets/designer_sketchbook.png";
 import {
   defaultFeedback,
   outfitOptions,
@@ -104,41 +107,103 @@ export default function Home() {
 
   return (
     <>
-      <section
-        className="relative min-h-[74vh] overflow-hidden bg-plum"
-        style={{
-          backgroundImage: `linear-gradient(90deg, rgba(43, 38, 48, 0.82), rgba(81, 50, 82, 0.45), rgba(255, 248, 237, 0.12)), url(${boutiqueImages.hero})`,
-          backgroundPosition: "center",
-          backgroundSize: "cover",
-        }}
-      >
-        <div className="page-shell flex min-h-[74vh] items-center">
-          <div className="max-w-3xl animate-fadeUp py-16 text-white">
-            <p className="mb-4 inline-flex rounded-md bg-white/14 px-4 py-2 text-sm font-bold text-gold backdrop-blur">
-              Premium custom stitching studio
+      <section className="relative min-h-[74vh] overflow-hidden bg-cream py-12 lg:py-20">
+        <div className="page-shell grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="flex flex-col justify-center animate-fadeUp">
+            {/* Logo/Badge */}
+            <div className="mb-6 flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center border-2 border-gold rounded-md">
+                <span className="font-display text-2xl font-bold text-plum">D</span>
+              </div>
+              <div>
+                <span className="block font-display text-lg font-bold tracking-wide text-plum leading-none">
+                  DHANVIKA
+                </span>
+                <span className="block text-[10px] font-extrabold tracking-widest text-gold uppercase mt-1">
+                  Ethnic Choice Boutique
+                </span>
+              </div>
+            </div>
+
+            {/* Subtitle */}
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gold">
+              CUSTOM STITCHED
             </p>
-            <h1 className="font-display text-5xl font-bold leading-tight sm:text-6xl lg:text-7xl">
-              Dhanvika Ethnic Choice Boutique
+
+            {/* Title */}
+            <h1 className="font-display text-5xl font-bold leading-tight text-plum sm:text-6xl lg:text-7xl">
+              Elegance, <span className="italic font-display font-medium">Just For You</span>
             </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/86">
-              Custom stitched outfits with personalized measurements and modern
-              designs.
+
+            {/* Description */}
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-ink/75">
+              Bespoke ethnic wear designed with love, crafted to perfection for every occasion.
             </p>
+
+            {/* Buttons */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 to="/select-outfit"
-                className="btn-primary bg-gold text-plum hover:bg-white"
+                className="btn-primary"
               >
-                <Sparkles size={18} />
-                Start Designing
+                Explore Collection
+                <ArrowRight size={18} />
               </Link>
               <Link
-                to="/gallery"
-                className="btn-secondary border-white/70 bg-white/95"
+                to="/select-outfit"
+                className="btn-secondary"
               >
-                <CalendarCheck size={18} />
-                Explore Gallery
+                Custom Stitching
+                <Scissors size={18} className="text-gold" />
               </Link>
+            </div>
+
+            {/* Features Row */}
+            <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 border-t border-plum/10 pt-8">
+              {[
+                {
+                  icon: Scissors,
+                  title: "CUSTOM FIT",
+                  desc: "Tailored for you",
+                },
+                {
+                  icon: Sparkles,
+                  title: "PREMIUM FABRICS",
+                  desc: "Quality you deserve",
+                },
+                {
+                  icon: Award,
+                  title: "EXPERT TAILORING",
+                  desc: "Perfection in every stitch",
+                },
+                {
+                  icon: Clock,
+                  title: "TIMELY DELIVERY",
+                  desc: "On time, every time",
+                },
+              ].map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex flex-col gap-1">
+                    <Icon size={20} className="text-gold" />
+                    <h3 className="text-xs font-bold tracking-wider text-plum uppercase mt-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-ink/60">{item.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right Column: Image */}
+          <div className="relative animate-fadeUp">
+            <div className="overflow-hidden rounded-2xl shadow-aura border-4 border-white/60">
+              <img
+                src={designerSketchbook}
+                alt="Fashion designer sketchbook with lehenga drawing"
+                className="w-full h-auto object-cover max-h-[580px] rounded-xl"
+              />
             </div>
           </div>
         </div>

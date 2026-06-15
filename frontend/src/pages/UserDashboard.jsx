@@ -56,6 +56,8 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [cartPhone, setCartPhone] = useState(user?.phone || "");
   const [cartPhoneError, setCartPhoneError] = useState("");
+  const [wishlistPhone, setWishlistPhone] = useState(user?.phone || "");
+  const [wishlistPhoneError, setWishlistPhoneError] = useState("");
 
   useEffect(() => {
     async function loadAll() {
@@ -144,6 +146,7 @@ export default function UserDashboard() {
   }
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price || 0), 0);
+  const wishlistTotal = wishlist.reduce((sum, item) => sum + (item.price || 0), 0);
 
   async function handlePlaceCartOrder() {
     const digits = cartPhone.replace(/\D/g, "");
@@ -195,6 +198,47 @@ export default function UserDashboard() {
     } catch (err) {
       console.error("Cancel order error:", err);
       alert("Failed to cancel order. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePlaceWishlistOrder() {
+    const digits = wishlistPhone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      setWishlistPhoneError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    setWishlistPhoneError("");
+
+    try {
+      setLoading(true);
+      const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
+      await Promise.all(
+        wishlist.map((item) =>
+          createOrder({
+            outfit_type: item.id,
+            outfit_title: item.name,
+            fabric_image: item.image,
+            total_price: item.price,
+            status: "Order Received",
+            customer_name: user.name,
+            customer_email: user.email,
+            customer_phone: formattedPhone,
+          })
+        )
+      );
+
+      await Promise.all(wishlist.map((item) => toggleWishlistApi(item.id)));
+      setWishlist([]);
+
+      const ordData = await fetchOrders();
+      setOrders(ordData.orders || []);
+      setActiveTab("orders");
+      alert("Your order has been placed successfully!");
+    } catch (err) {
+      console.error("Place order from wishlist error:", err);
+      alert("Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -382,11 +426,50 @@ export default function UserDashboard() {
       {activeTab === "wishlist" && (
         <DashboardPanel title="Wishlist">
           {wishlist.length ? (
-            <ItemGrid
-              items={wishlist}
-              actionLabel="Remove Wishlist"
-              onAction={(product) => handleWishlist(product)}
-            />
+            <>
+              <ItemGrid
+                items={wishlist}
+                actionLabel="Remove Wishlist"
+                onAction={(product) => handleWishlist(product)}
+              />
+              <div className="mt-8 flex flex-col items-end gap-3 border-t border-plum/10 pt-6">
+                <div className="w-full max-w-sm mb-2 text-left">
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    <span className="flex items-center gap-2">
+                      <Phone size={15} />
+                      WhatsApp Mobile Number
+                    </span>
+                    <input
+                      className="input-field"
+                      type="tel"
+                      value={wishlistPhone}
+                      onChange={(e) => {
+                        setWishlistPhone(e.target.value);
+                        setWishlistPhoneError("");
+                      }}
+                      placeholder="e.g. 9876543210"
+                      required
+                      maxLength={15}
+                    />
+                  </label>
+                  {wishlistPhoneError && (
+                    <p className="mt-2 rounded-md bg-rose/10 px-4 py-2 text-xs font-semibold text-rose">
+                      {wishlistPhoneError}
+                    </p>
+                  )}
+                </div>
+                <p className="text-xl font-bold text-plum">
+                  Total Price: <span className="text-rose">{formatPrice(wishlistTotal)}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={handlePlaceWishlistOrder}
+                  className="btn-primary"
+                >
+                  Place Order
+                </button>
+              </div>
+            </>
           ) : (
             <EmptyState
               title="Wishlist is empty"
@@ -578,26 +661,30 @@ function ItemGrid({ items, actionLabel, onAction }) {
   return (
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
-        <article key={item.id} className="card overflow-hidden">
-          <img
-            src={item.image || item.image_url}
-            alt={item.name}
-            className="h-44 w-full object-cover"
-          />
-          <div className="p-5">
-            <p className="text-xs font-bold uppercase text-gold">
-              {item.category}
-            </p>
-            <h3 className="font-display text-xl font-bold text-plum">
-              {item.name}
-            </h3>
-            <p className="mt-2 font-bold text-rose">
-              {formatPrice(item.price)}
-            </p>
+        <article key={item.id} className="card overflow-hidden flex flex-col justify-between">
+          <div>
+            <img
+              src={item.image || item.image_url}
+              alt={item.name}
+              className="h-44 w-full object-cover"
+            />
+            <div className="p-5 pb-0">
+              <p className="text-xs font-bold uppercase text-gold">
+                {item.category}
+              </p>
+              <h3 className="font-display text-xl font-bold text-plum">
+                {item.name}
+              </h3>
+              <p className="mt-2 font-bold text-rose">
+                {formatPrice(item.price)}
+              </p>
+            </div>
+          </div>
+          <div className="p-5 pt-4">
             <button
               type="button"
               onClick={() => onAction(item)}
-              className="btn-secondary mt-4 w-full"
+              className="btn-secondary w-full"
             >
               {actionLabel}
             </button>
