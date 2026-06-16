@@ -8,6 +8,7 @@ import {
   Scissors,
   Sparkles,
   Star,
+  ShoppingBag,
 } from "lucide-react";
 import { boutiqueImages } from "../assets/images.js";
 import designerSketchbook from "../assets/designer_sketchbook.png";
@@ -19,6 +20,7 @@ import {
 import { fetchFeedback } from "../services/feedbackService.js";
 import { fetchProducts } from "../services/productService.js";
 import { fetchTrendingDesigns } from "../services/trendingDesignService.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function buildOutfitCards(products) {
   const byCategory = new Map();
@@ -56,6 +58,7 @@ function buildTrendingCards(designs) {
 }
 
 export default function Home() {
+  const { user } = useAuth();
   const [outfitCards, setOutfitCards] = useState(outfitOptions);
   const [designCards, setDesignCards] = useState(trendingDesigns);
   const [feedbackCards, setFeedbackCards] = useState(
@@ -141,22 +144,45 @@ export default function Home() {
             </p>
 
             {/* Buttons */}
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                to="/select-outfit"
-                className="btn-primary"
-              >
-                Explore Collection
-                <ArrowRight size={18} />
-              </Link>
-              <Link
-                to="/select-outfit"
-                className="btn-secondary"
-              >
-                Custom Stitching
-                <Scissors size={18} className="text-gold" />
-              </Link>
-            </div>
+            {!user || user.role !== "admin" ? (
+              <div className="mt-8 flex flex-col gap-3.5 sm:flex-row sm:flex-wrap">
+                <Link
+                  to="/gallery"
+                  className="btn-gallery-admin inline-flex items-center justify-center gap-3 rounded-xl px-7 py-3.5 text-base font-bold text-white focus:outline-none focus:ring-4 focus:ring-rose/20 group w-full sm:w-fit"
+                >
+                  <Sparkles size={20} className="text-gold animate-pulse group-hover:scale-125 transition-transform duration-300" />
+                  <span>Explore Gallery</span>
+                  <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform duration-300" />
+                </Link>
+                <Link
+                  to="/select-outfit"
+                  className="btn-gallery-admin inline-flex items-center justify-center gap-3 rounded-xl px-7 py-3.5 text-base font-bold text-white focus:outline-none focus:ring-4 focus:ring-rose/20 group w-full sm:w-fit"
+                >
+                  <Scissors size={20} className="text-gold group-hover:rotate-12 transition-transform duration-300" />
+                  <span>Custom Stitching</span>
+                  <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform duration-300" />
+                </Link>
+                <Link
+                  to="/user-dashboard?tab=browse"
+                  className="btn-gallery-admin inline-flex items-center justify-center gap-3 rounded-xl px-7 py-3.5 text-base font-bold text-white focus:outline-none focus:ring-4 focus:ring-rose/20 group w-full sm:w-fit"
+                >
+                  <ShoppingBag size={20} className="text-gold group-hover:scale-125 transition-transform duration-300" />
+                  <span>Boutique Products</span>
+                  <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform duration-300" />
+                </Link>
+              </div>
+            ) : (
+              <div className="mt-8 flex flex-col gap-3.5 sm:flex-row sm:flex-wrap">
+                <Link
+                  to="/gallery"
+                  className="btn-gallery-admin inline-flex items-center justify-center gap-3 rounded-xl px-7 py-3.5 text-base font-bold text-white focus:outline-none focus:ring-4 focus:ring-rose/20 group w-full sm:w-fit"
+                >
+                  <Sparkles size={20} className="text-gold animate-pulse group-hover:scale-125 transition-transform duration-300" />
+                  <span>Explore Gallery</span>
+                  <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform duration-300" />
+                </Link>
+              </div>
+            )}
 
             {/* Features Row */}
             <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 border-t border-plum/10 pt-8">

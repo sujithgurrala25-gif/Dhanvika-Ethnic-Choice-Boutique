@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Eye,
   Heart,
-  LogOut,
   Package,
   ShoppingBag,
   ShoppingCart,
   Sparkles,
-  UserRound,
   Phone,
+  ChevronLeft,
 } from "lucide-react";
 import EmptyState from "../components/EmptyState.jsx";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
@@ -29,11 +28,9 @@ import {
 
 const tabs = [
   { id: "browse", label: "Browse Products", icon: ShoppingBag },
-  { id: "cart", label: "Cart", icon: ShoppingCart },
   { id: "wishlist", label: "Wishlist", icon: Heart },
-  { id: "orders", label: "My Orders", icon: Package },
-  { id: "profile", label: "Profile", icon: UserRound },
 ];
+
 
 function normalizeProduct(product) {
   return {
@@ -51,7 +48,9 @@ export default function UserDashboard() {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [activeTab, setActiveTab] = useState("browse");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "browse";
+  const setActiveTab = (tabId) => setSearchParams({ tab: tabId });
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cartPhone, setCartPhone] = useState(user?.phone || "");
@@ -100,10 +99,7 @@ export default function UserDashboard() {
     loadAll();
   }, []);
 
-  async function handleLogout() {
-    await logout();
-    navigate("/login");
-  }
+
 
   function handleViewDetails(product) {
     setSelectedProduct(product);
@@ -262,53 +258,49 @@ export default function UserDashboard() {
 
   return (
     <section className="page-shell">
-      <div className="mb-8 grid gap-5 rounded-lg bg-white p-5 shadow-aura lg:grid-cols-[1fr_auto] lg:items-end">
-        <div>
-          <p className="mb-3 text-sm font-bold uppercase text-gold">
-            User Dashboard
-          </p>
-          <h1 className="section-title">Welcome, {user.name}</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/65">
-            Browse boutique products, save favorites, manage your cart, and
-            track custom stitching orders.
-          </p>
+      {(activeTab === "browse" || activeTab === "wishlist") && (
+        <div className="mb-6 grid gap-4 rounded-lg bg-white p-4 shadow-aura lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <p className="mb-1 text-xs font-bold uppercase text-gold">
+              User Dashboard
+            </p>
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-plum">Welcome, {user.name}</h1>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-ink/65">
+              Browse boutique products, save favorites, manage your cart, and
+              track custom stitching orders.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link to="/select-outfit" className="btn-primary py-2 px-4 text-sm">
+              <Sparkles size={16} />
+              Start Designing
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link to="/select-outfit" className="btn-primary">
-            <Sparkles size={17} />
-            Start Designing
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="btn-secondary"
-          >
-            <LogOut size={17} />
-            Logout
-          </button>
-        </div>
-      </div>
+      )}
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-2 rounded-md px-4 py-3 text-sm font-bold transition ${
-                activeTab === tab.id
-                  ? "bg-plum text-white shadow-aura"
-                  : "bg-white text-plum shadow-sm hover:bg-lavender/60"
-              }`}
-            >
-              <Icon size={17} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      {(activeTab === "browse" || activeTab === "wishlist") && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center gap-2 rounded-md px-4 py-3 text-sm font-bold transition ${
+                  activeTab === tab.id
+                    ? "bg-plum text-white shadow-aura"
+                    : "bg-white text-plum shadow-sm hover:bg-lavender/60"
+                }`}
+              >
+                <Icon size={17} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {activeTab === "browse" && (
         <DashboardPanel title="Browse Boutique Products">
@@ -336,6 +328,16 @@ export default function UserDashboard() {
               : "View Products"
           }
         >
+          <div className="mb-5">
+            <button
+              type="button"
+              onClick={() => setActiveTab("browse")}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <ChevronLeft size={16} />
+              Back to Products
+            </button>
+          </div>
           {selectedProduct ? (
             selectedDesigns.length ? (
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -543,23 +545,8 @@ export default function UserDashboard() {
         </DashboardPanel>
       )}
 
-      {activeTab === "profile" && (
-        <DashboardPanel title="Profile">
-          <div className="card max-w-2xl p-6">
-            <span className="mb-5 grid h-16 w-16 place-items-center rounded-md bg-lavender text-plum">
-              <UserRound size={30} />
-            </span>
-            <div className="grid gap-3">
-              <Info label="Name" value={user.name} />
-              <Info label="Email" value={user.email} />
-              <Info label="Role" value={user.role || "user"} />
-              <Info label="Cart Items" value={cart.length} />
-              <Info label="Wishlist Items" value={wishlist.length} />
-              <Info label="Orders" value={orders.length} />
-            </div>
-          </div>
-        </DashboardPanel>
-      )}
+
+
     </section>
   );
 }

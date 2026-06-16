@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Edit3,
+  Eye,
+  EyeOff,
   Image as ImageIcon,
   LogOut,
+  Mail,
   MessageSquareText,
   MessageCircle,
   PackageCheck,
+  Phone,
   Plus,
   RefreshCw,
   Save,
@@ -49,8 +53,24 @@ import {
   fetchProductDesigns,
   updateProductDesign,
 } from "../services/productDesignService.js";
-import { buildWhatsAppOrderLink, buildWhatsAppReadyMessage } from "../utils/whatsapp.js";
+import { buildWhatsAppOrderLink, buildWhatsAppReadyMessage, normalizeWhatsAppPhone } from "../utils/whatsapp.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
+
+const measurementLabels = {
+  bust: "Bust",
+  chestRound: "Chest Round",
+  underBust: "Under Bust",
+  waist: "Waist",
+  hip: "Hip",
+  shoulder: "Shoulder",
+  sleeveLength: "Sleeve Length",
+  armRound: "Arm Round",
+  armHole: "Arm Hole",
+  dressLength: "Dress Length",
+  blouseLength: "Blouse Length",
+  neckDepth: "Neck Depth",
+  sleeveOpening: "Sleeve Opening",
+};
 
 const emptyProductForm = {
   name: "",
@@ -97,9 +117,47 @@ export default function AdminDashboard() {
   const [productDesigns, setProductDesigns] = useState([]);
   const [trendingDesigns, setTrendingDesigns] = useState([]);
   const [orders, setOrders]       = useState([]);
+  const [expandedOrders, setExpandedOrders] = useState({});
+
+  const toggleMeasurements = (orderId) => {
+    setExpandedOrders((prev) => ({
+      ...prev,
+      [orderId]: !prev[orderId],
+    }));
+  };
   const [feedback, setFeedback]   = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [activeTab, setActiveTab] = useState("products");
+
+  const customerStats = useMemo(() => {
+    return customers.map((customer) => {
+      const customerOrders = orders.filter(
+        (o) =>
+          (o.customer_email || o.user_email)?.toLowerCase() === customer.email?.toLowerCase()
+      );
+
+      const latestOrderWithPhone = [...customerOrders].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      ).find((o) => o.customer_phone || o.customerPhone);
+
+      const phone = customer.phone || (latestOrderWithPhone
+        ? (latestOrderWithPhone.customer_phone || latestOrderWithPhone.customerPhone)
+        : "");
+
+      const totalSpent = customerOrders.reduce(
+        (sum, o) => sum + Number(o.price || o.total_price || 0),
+        0
+      );
+
+      return {
+        ...customer,
+        ordersCount: customerOrders.length,
+        totalSpent,
+        phone,
+      };
+    });
+  }, [customers, orders]);
 
   const activeOrders    = useMemo(() => orders.filter((o) => o.status !== "Delivered"), [orders]);
   const deliveredOrders = useMemo(() => orders.filter((o) => o.status === "Delivered"), [orders]);
@@ -548,580 +606,438 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-6">
-        <StatCard icon={PackageCheck} label="Products"  value={products.length}  href="#section-products" />
-        <StatCard icon={ShoppingBag} label="Designs" value={productDesigns.length} href="#section-product-designs" />
-        <StatCard icon={ImageIcon} label="Trending" value={trendingDesigns.length} href="#section-trending" />
-        <StatCard icon={ShoppingBag} label="Orders"    value={orders.length}    href="#section-orders" />
-        <StatCard icon={Users}       label="Customers" value={customers.length} onClick={() => navigate("/admin-customers")} />
-        <StatCard icon={MessageSquareText} label="Feedback" value={feedback.length} href="#section-feedback" />
+        <StatCard icon={PackageCheck} label="Products"  value={products.length}  isActive={activeTab === "products"}  onClick={() => setActiveTab("products")} />
+        <StatCard icon={ShoppingBag} label="Designs" value={productDesigns.length} isActive={activeTab === "designs"}  onClick={() => setActiveTab("designs")} />
+        <StatCard icon={ImageIcon} label="Trending" value={trendingDesigns.length} isActive={activeTab === "trending"} onClick={() => setActiveTab("trending")} />
+        <StatCard icon={ShoppingBag} label="Orders"    value={orders.length}    isActive={activeTab === "orders"}   onClick={() => setActiveTab("orders")} />
+        <StatCard icon={Users}       label="Customers" value={customers.length} isActive={activeTab === "customers"} onClick={() => setActiveTab("customers")} />
+        <StatCard icon={MessageSquareText} label="Feedback" value={feedback.length} isActive={activeTab === "feedback"} onClick={() => setActiveTab("feedback")} />
       </div>
 
-      {/* ── Products ─────────────────────────────────────────── */}
-      <div id="section-products" className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr] scroll-mt-6">
-        <form className="card h-fit p-5" onSubmit={handleProductSubmit}>
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase text-gold">{editingId ? "Edit product" : "Add product"}</p>
-              <h2 className="font-display text-2xl font-bold text-plum">Product Form</h2>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-md bg-lavender text-plum">
-              {editingId ? <Edit3 size={20} /> : <Plus size={20} />}
-            </span>
-          </div>
-
-          <div className="grid gap-4">
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Product Name
-              <input className="input-field" name="name" value={form.name} onChange={handleFormChange} required />
-            </label>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Category
-                <select className="input-field" name="category" value={form.category} onChange={handleFormChange}>
-                  {["Blouse", "Kurti", "Long Frock", "Lehenga"].map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Stock
-                <input className="input-field" type="number" min="0" name="stock" value={form.stock} onChange={handleFormChange} required />
-              </label>
-            </div>
-
-
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Image URL
-              <input className="input-field" name="image" value={form.image} onChange={handleFormChange} placeholder="https://..." />
-            </label>
-
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Description
-              <textarea className="input-field min-h-28 resize-y" name="description" value={form.description} onChange={handleFormChange} required />
-            </label>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" className="btn-primary flex-1">
-                <Save size={17} />
-                {editingId ? "Update Product" : "Add Product"}
-              </button>
-              {editingId && (
-                <button type="button" onClick={resetForm} className="btn-secondary flex-1">Cancel</button>
-              )}
-            </div>
-          </div>
-        </form>
-
-        <div className="card overflow-hidden">
-          <div className="border-b border-plum/10 p-5">
-            <h2 className="font-display text-2xl font-bold text-plum">View All Products</h2>
-          </div>
-          {products.length ? (
-            <div className="divide-y divide-plum/10">
-              {products.map((product) => (
-                <article key={product.id} className="grid gap-4 p-5 md:grid-cols-[130px_1fr]">
-                  <img src={product.image_url || product.image || boutiqueImages.intro} alt={product.name} className="h-32 w-full rounded-lg object-cover" />
-                  <div>
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                      <div>
-                        <p className="text-xs font-bold uppercase text-gold">{product.category}</p>
-                        <h3 className="font-display text-2xl font-bold text-plum">{product.name}</h3>
-                        <p className="mt-1 text-sm leading-6 text-ink/65">{product.description}</p>
-                      </div>
-                      <div className="shrink-0 text-left sm:text-right">
-                        <p className="text-xs font-bold uppercase text-ink/50">Stock: {product.stock}</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <button type="button" onClick={() => handleEditProduct(product)} className="btn-secondary flex-1">
-                        <Edit3 size={17} /> Edit Product
-                      </button>
-                      <button type="button" onClick={() => handleDeleteProduct(product.id)} className="btn-secondary flex-1">
-                        <Trash2 size={17} /> Delete Product
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center text-sm text-ink/60">No products available. Add your first product.</div>
-          )}
-        </div>
-      </div>
-
-      <div
-        id="section-product-designs"
-        className="mt-6 grid gap-6 scroll-mt-6 xl:grid-cols-[0.85fr_1.15fr]"
-      >
-        <form className="card h-fit p-5" onSubmit={handleDesignSubmit}>
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase text-gold">
-                {editingDesignId ? "Edit category design" : "Add category design"}
-              </p>
-              <h2 className="font-display text-2xl font-bold text-plum">
-                Product Design Form
-              </h2>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-md bg-lavender text-plum">
-              {editingDesignId ? <Edit3 size={20} /> : <Plus size={20} />}
-            </span>
-          </div>
-
-          <div className="grid gap-4">
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Main Product
-              <select
-                className="input-field"
-                name="parentProductId"
-                value={designForm.parentProductId}
-                onChange={handleDesignChange}
-                required
-              >
-                <option value="">Select product category</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.category} - {product.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Design Name
-              <input
-                className="input-field"
-                name="name"
-                value={designForm.name}
-                onChange={handleDesignChange}
-                required
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Image URL
-              <input
-                className="input-field"
-                name="image"
-                value={designForm.image}
-                onChange={handleDesignChange}
-                placeholder="https://..."
-              />
-            </label>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Price
-                <input
-                  className="input-field"
-                  type="number"
-                  min="0"
-                  name="price"
-                  value={designForm.price}
-                  onChange={handleDesignChange}
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Stock
-                <input
-                  className="input-field"
-                  type="number"
-                  min="0"
-                  name="stock"
-                  value={designForm.stock}
-                  onChange={handleDesignChange}
-                />
-              </label>
-            </div>
-
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Description
-              <textarea
-                className="input-field min-h-28 resize-y"
-                name="description"
-                value={designForm.description}
-                onChange={handleDesignChange}
-                required
-              />
-            </label>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" className="btn-primary flex-1">
-                <Save size={17} />
-                {editingDesignId ? "Update Design" : "Add Design"}
-              </button>
-              {editingDesignId && (
-                <button
-                  type="button"
-                  onClick={resetDesignForm}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
-        </form>
-
-        <div className="card overflow-hidden">
-          <div className="border-b border-plum/10 p-5">
-            <h2 className="font-display text-2xl font-bold text-plum">
-              Category Designs
-            </h2>
-          </div>
-          {productDesigns.length ? (
-            <div className="divide-y divide-plum/10">
-              {productDesigns.map((design) => (
-                <article
-                  key={design.id}
-                  className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
-                >
-                  <img
-                    src={design.image_url || design.image || boutiqueImages.intro}
-                    alt={design.name}
-                    className="h-32 w-full rounded-lg object-cover"
-                  />
-                  <div>
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                      <div>
-                        <p className="text-xs font-bold uppercase text-gold">
-                          {design.category}
-                        </p>
-                        <h3 className="font-display text-2xl font-bold text-plum">
-                          {design.name}
-                        </h3>
-                        <p className="mt-1 text-sm leading-6 text-ink/65">
-                          {design.description}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-left sm:text-right">
-                        <p className="text-lg font-bold text-rose">
-                          {formatPrice(design.price)}
-                        </p>
-                        <p className="text-xs font-bold uppercase text-ink/50">
-                          Stock: {design.stock}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => handleEditDesign(design)}
-                        className="btn-secondary flex-1"
-                      >
-                        <Edit3 size={17} /> Edit Design
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteDesign(design.id)}
-                        className="btn-secondary flex-1"
-                      >
-                        <Trash2 size={17} /> Delete Design
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center text-sm text-ink/60">
-              No category designs available. Add designs under Blouse, Kurti,
-              Long Frock, or Lehenga.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div
-        id="section-trending"
-        className="mt-6 grid gap-6 scroll-mt-6 xl:grid-cols-[0.85fr_1.15fr]"
-      >
-        <form className="card h-fit p-5" onSubmit={handleTrendingSubmit}>
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase text-gold">
-                {editingTrendingId ? "Edit design" : "Add design"}
-              </p>
-              <h2 className="font-display text-2xl font-bold text-plum">
-                Trending Design Form
-              </h2>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-md bg-lavender text-plum">
-              {editingTrendingId ? <Edit3 size={20} /> : <Plus size={20} />}
-            </span>
-          </div>
-
-          <div className="grid gap-4">
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Title
-              <input
-                className="input-field"
-                name="title"
-                value={trendingForm.title}
-                onChange={handleTrendingChange}
-                required
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Image URL
-              <input
-                className="input-field"
-                name="image"
-                value={trendingForm.image}
-                onChange={handleTrendingChange}
-                placeholder="https://..."
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-bold text-plum">
-              Description
-              <textarea
-                className="input-field min-h-28 resize-y"
-                name="description"
-                value={trendingForm.description}
-                onChange={handleTrendingChange}
-                required
-              />
-            </label>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" className="btn-primary flex-1">
-                <Save size={17} />
-                {editingTrendingId ? "Update Design" : "Add Design"}
-              </button>
-              {editingTrendingId && (
-                <button
-                  type="button"
-                  onClick={resetTrendingForm}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
-        </form>
-
-        <div className="card overflow-hidden">
-          <div className="border-b border-plum/10 p-5">
-            <h2 className="font-display text-2xl font-bold text-plum">
-              Home Trending Designs
-            </h2>
-          </div>
-          {trendingDesigns.length ? (
-            <div className="divide-y divide-plum/10">
-              {trendingDesigns.map((design) => (
-                <article
-                  key={design.id}
-                  className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
-                >
-                  <img
-                    src={design.image_url || design.image || boutiqueImages.intro}
-                    alt={design.title}
-                    className="h-32 w-full rounded-lg object-cover"
-                  />
-                  <div>
-                    <h3 className="font-display text-2xl font-bold text-plum">
-                      {design.title}
-                    </h3>
-                    <p className="mt-1 text-sm leading-6 text-ink/65">
-                      {design.description}
-                    </p>
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => handleEditTrending(design)}
-                        className="btn-secondary flex-1"
-                      >
-                        <Edit3 size={17} /> Edit Design
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTrending(design.id)}
-                        className="btn-secondary flex-1"
-                      >
-                        <Trash2 size={17} /> Delete Design
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center text-sm text-ink/60">
-              No trending designs available. Add your first design.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Orders ───────────────────────────────────────────── */}
-      <div id="section-orders" className="mt-6 grid gap-6 xl:grid-cols-[1.25fr_0.75fr] scroll-mt-6">
-        <div className="card overflow-hidden">
-          <div className="border-b border-plum/10 p-5">
-            <h2 className="font-display text-2xl font-bold text-plum">Active Orders</h2>
-          </div>
-          {whatsAppStatus && (
-            <div className={`m-5 rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
-              whatsAppStatus.type === "success" ? "bg-green-50 text-green-700" : "bg-rose/10 text-rose"
-            }`}>
-              <div className="flex justify-between items-center gap-4">
-                <p>{whatsAppStatus.message}</p>
-                <button
-                  type="button"
-                  onClick={() => setWhatsAppStatus(null)}
-                  className="text-current opacity-70 hover:opacity-100 text-xs font-bold"
-                >
-                  Dismiss
-                </button>
+      {/* ── Products Tab ── */}
+      {activeTab === "products" && (
+        <div id="section-products" className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr] scroll-mt-6 animate-fadeUp">
+          <form className="card h-fit p-5" onSubmit={handleProductSubmit}>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-gold">{editingId ? "Edit product" : "Add product"}</p>
+                <h2 className="font-display text-2xl font-bold text-plum">Product Form</h2>
               </div>
-              {whatsAppStatus.link && (
-                <a
-                  href={whatsAppStatus.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-primary py-1.5 px-3 text-xs w-fit bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5"
-                >
-                  <MessageCircle size={14} /> Open WhatsApp Chat
-                </a>
-              )}
+              <span className="grid h-11 w-11 place-items-center rounded-md bg-lavender text-plum">
+                {editingId ? <Edit3 size={20} /> : <Plus size={20} />}
+              </span>
             </div>
-          )}
-          {activeOrders.length ? (
-            <div className="divide-y divide-plum/10">
-              {activeOrders.map((order) => (
-                <article key={order.id} className="grid gap-4 p-5 lg:grid-cols-[140px_1fr]">
-                  <img src={order.fabric_image || order.fabricImage} alt="Uploaded fabric" className="h-36 w-full rounded-lg object-cover" />
-                  <div>
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                      <div>
-                        <p className="text-xs font-bold uppercase text-gold">{order.id}</p>
-                        <h3 className="font-display text-2xl font-bold text-plum">{order.outfit?.title || order.outfit_type}</h3>
-                        <p className="text-sm text-ink/58">
-                          {order.customer_name || order.user_name} · {order.customer_email || order.user_email}
-                        </p>
-                      </div>
-                      <label className="grid gap-2 text-sm font-bold text-plum">
-                        Update Order Status
-                        <select
-                          className="input-field max-w-56"
-                          value={order.status}
-                          onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        >
-                          {orderStatusOptions.map((s) => <option key={s}>{s}</option>)}
-                        </select>
-                      </label>
-                    </div>
 
-                    {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <Info label="Price"   value={formatPrice(order.price)} />
-                        <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
-                        <Info label="Type"    value="Ready-made Product" />
-                      </div>
-                    ) : (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <Info label="Price"   value={formatPrice(order.price)} />
-                        <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
-                        <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
-                        <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
-                        <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <button type="button" onClick={() => handleSendWhatsApp(order)} className="btn-secondary flex-1">
-                        <MessageCircle size={17} /> Send WhatsApp
-                      </button>
-                      <button type="button" onClick={() => handleDeleteOrder(order)} className="btn-secondary flex-1">
-                        <Trash2 size={17} /> Delete Order
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center text-sm text-ink/60">No active orders.</div>
-          )}
-        </div>
-
-        <div className="grid gap-6">
-          {/* ── Add Offline Customer Order ── */}
-          <form className="card p-5" onSubmit={handleOfflineSubmit}>
-            <h2 className="font-display text-2xl font-bold text-plum">Add Offline Customer Order</h2>
-            <p className="mt-2 text-sm text-ink/60">Enter customer details and product for offline customers.</p>
-
-            <div className="mt-4 grid gap-3">
+            <div className="grid gap-4">
               <label className="grid gap-2 text-sm font-bold text-plum">
-                Customer Name
-                <input className="input-field" name="customerName" value={offlineForm.customerName} onChange={handleOfflineChange} required />
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Email
-                <input className="input-field" type="email" name="customerEmail" value={offlineForm.customerEmail} onChange={handleOfflineChange} />
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                WhatsApp Mobile Number
-                <input className="input-field" name="customerPhone" value={offlineForm.customerPhone} onChange={handleOfflineChange} placeholder="9876543210 or 919876543210" required />
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Outfit Title (optional)
-                <input className="input-field" name="outfitTitle" value={offlineForm.outfitTitle} onChange={handleOfflineChange} />
+                Product Name
+                <input className="input-field" name="name" value={form.name} onChange={handleFormChange} required />
               </label>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-2 text-sm font-bold text-plum">
                   Category
-                  <select className="input-field" name="outfitCategory" value={offlineForm.outfitCategory} onChange={handleOfflineChange}>
+                  <select className="input-field" name="category" value={form.category} onChange={handleFormChange}>
                     {["Blouse", "Kurti", "Long Frock", "Lehenga"].map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </label>
                 <label className="grid gap-2 text-sm font-bold text-plum">
+                  Stock
+                  <input className="input-field" type="number" min="0" name="stock" value={form.stock} onChange={handleFormChange} required />
+                </label>
+              </div>
+
+
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Image URL
+                <input className="input-field" name="image" value={form.image} onChange={handleFormChange} placeholder="https://..." />
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Description
+                <textarea className="input-field min-h-28 resize-y" name="description" value={form.description} onChange={handleFormChange} required />
+              </label>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button type="submit" className="btn-primary flex-1">
+                  <Save size={17} />
+                  {editingId ? "Update Product" : "Add Product"}
+                </button>
+                {editingId && (
+                  <button type="button" onClick={resetForm} className="btn-secondary flex-1">Cancel</button>
+                )}
+              </div>
+            </div>
+          </form>
+
+          <div className="card overflow-hidden">
+            <div className="border-b border-plum/10 p-5">
+              <h2 className="font-display text-2xl font-bold text-plum">View All Products</h2>
+            </div>
+            {products.length ? (
+              <div className="divide-y divide-plum/10">
+                {products.map((product) => (
+                  <article key={product.id} className="grid gap-4 p-5 md:grid-cols-[130px_1fr]">
+                    <img src={product.image_url || product.image || boutiqueImages.intro} alt={product.name} className="h-32 w-full rounded-lg object-cover" />
+                    <div>
+                      <div className="flex flex-col justify-between gap-3 sm:flex-row">
+                        <div>
+                          <p className="text-xs font-bold uppercase text-gold">{product.category}</p>
+                          <h3 className="font-display text-2xl font-bold text-plum">{product.name}</h3>
+                          <p className="mt-1 text-sm leading-6 text-ink/65">{product.description}</p>
+                        </div>
+                        <div className="shrink-0 text-left sm:text-right">
+                          <p className="text-xs font-bold uppercase text-ink/50">Stock: {product.stock}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <button type="button" onClick={() => handleEditProduct(product)} className="btn-secondary flex-1">
+                          <Edit3 size={17} /> Edit Product
+                        </button>
+                        <button type="button" onClick={() => handleDeleteProduct(product.id)} className="btn-secondary flex-1">
+                          <Trash2 size={17} /> Delete Product
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-sm text-ink/60">No products available. Add your first product.</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Designs Tab ── */}
+      {activeTab === "designs" && (
+        <div id="section-product-designs" className="mt-6 grid gap-6 scroll-mt-6 xl:grid-cols-[0.85fr_1.15fr] animate-fadeUp">
+          <form className="card h-fit p-5" onSubmit={handleDesignSubmit}>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-gold">
+                  {editingDesignId ? "Edit category design" : "Add category design"}
+                </p>
+                <h2 className="font-display text-2xl font-bold text-plum">
+                  Product Design Form
+                </h2>
+              </div>
+              <span className="grid h-11 w-11 place-items-center rounded-md bg-lavender text-plum">
+                {editingDesignId ? <Edit3 size={20} /> : <Plus size={20} />}
+              </span>
+            </div>
+
+            <div className="grid gap-4">
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Main Product
+                <select
+                  className="input-field"
+                  name="parentProductId"
+                  value={designForm.parentProductId}
+                  onChange={handleDesignChange}
+                  required
+                >
+                  <option value="">Select product category</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.category} - {product.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Design Name
+                <input
+                  className="input-field"
+                  name="name"
+                  value={designForm.name}
+                  onChange={handleDesignChange}
+                  required
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Image URL
+                <input
+                  className="input-field"
+                  name="image"
+                  value={designForm.image}
+                  onChange={handleDesignChange}
+                  placeholder="https://..."
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-bold text-plum">
                   Price
-                  <input className="input-field" type="number" min="0" name="price" value={offlineForm.price} onChange={handleOfflineChange} />
+                  <input
+                    className="input-field"
+                    type="number"
+                    min="0"
+                    name="price"
+                    value={designForm.price}
+                    onChange={handleDesignChange}
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-bold text-plum">
+                  Stock
+                  <input
+                    className="input-field"
+                    type="number"
+                    min="0"
+                    name="stock"
+                    value={designForm.stock}
+                    onChange={handleDesignChange}
+                  />
                 </label>
               </div>
 
               <label className="grid gap-2 text-sm font-bold text-plum">
-                Fabric Image URL (optional)
-                <input className="input-field" name="fabricImage" value={offlineForm.fabricImage} onChange={handleOfflineChange} placeholder="https://..." />
+                Description
+                <textarea
+                  className="input-field min-h-28 resize-y"
+                  name="description"
+                  value={designForm.description}
+                  onChange={handleDesignChange}
+                  required
+                />
               </label>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <label className="grid gap-2 text-sm font-bold text-plum">
-                  Neck
-                  <select className="input-field" name="neckStyle" value={offlineForm.neckStyle} onChange={handleOfflineChange}>
-                    {["Round", "V-neck", "Boat"].map((n) => <option key={n}>{n}</option>)}
-                  </select>
-                </label>
-                <label className="grid gap-2 text-sm font-bold text-plum">
-                  Sleeve
-                  <select className="input-field" name="sleeveStyle" value={offlineForm.sleeveStyle} onChange={handleOfflineChange}>
-                    {["Short", "3/4", "Full"].map((s) => <option key={s}>{s}</option>)}
-                  </select>
-                </label>
-                <label className="grid gap-2 text-sm font-bold text-plum">
-                  Fitting
-                  <select className="input-field" name="fittingStyle" value={offlineForm.fittingStyle} onChange={handleOfflineChange}>
-                    {["Regular", "Slim", "Loose"].map((f) => <option key={f}>{f}</option>)}
-                  </select>
-                </label>
-              </div>
-
-              <div className="mt-3 flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <button type="submit" className="btn-primary flex-1">
-                  <Save size={17} /> Save & Send WhatsApp
+                  <Save size={17} />
+                  {editingDesignId ? "Update Design" : "Add Design"}
                 </button>
-                <button type="button" onClick={resetOfflineForm} className="btn-secondary">Cancel</button>
+                {editingDesignId && (
+                  <button
+                    type="button"
+                    onClick={resetDesignForm}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
+            </div>
+          </form>
 
+          <div className="card overflow-hidden">
+            <div className="border-b border-plum/10 p-5">
+              <h2 className="font-display text-2xl font-bold text-plum">
+                Category Designs
+              </h2>
+            </div>
+            {productDesigns.length ? (
+              <div className="divide-y divide-plum/10">
+                {productDesigns.map((design) => (
+                  <article
+                    key={design.id}
+                    className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
+                  >
+                    <img
+                      src={design.image_url || design.image || boutiqueImages.intro}
+                      alt={design.name}
+                      className="h-32 w-full rounded-lg object-cover"
+                    />
+                    <div>
+                      <div className="flex flex-col justify-between gap-3 sm:flex-row">
+                        <div>
+                          <p className="text-xs font-bold uppercase text-gold">
+                            {design.category}
+                          </p>
+                          <h3 className="font-display text-2xl font-bold text-plum">
+                            {design.name}
+                          </h3>
+                          <p className="mt-1 text-sm leading-6 text-ink/65">
+                            {design.description}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-left sm:text-right">
+                          <p className="text-lg font-bold text-rose">
+                            {formatPrice(design.price)}
+                          </p>
+                          <p className="text-xs font-bold uppercase text-ink/50">
+                            Stock: {design.stock}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => handleEditDesign(design)}
+                          className="btn-secondary flex-1"
+                        >
+                          <Edit3 size={17} /> Edit Design
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDesign(design.id)}
+                          className="btn-secondary flex-1"
+                        >
+                          <Trash2 size={17} /> Delete Design
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-sm text-ink/60">
+                No category designs available. Add designs under Blouse, Kurti,
+                Long Frock, or Lehenga.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Trending Tab ── */}
+      {activeTab === "trending" && (
+        <div id="section-trending" className="mt-6 grid gap-6 scroll-mt-6 xl:grid-cols-[0.85fr_1.15fr] animate-fadeUp">
+          <form className="card h-fit p-5" onSubmit={handleTrendingSubmit}>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-gold">
+                  {editingTrendingId ? "Edit design" : "Add design"}
+                </p>
+                <h2 className="font-display text-2xl font-bold text-plum">
+                  Trending Design Form
+                </h2>
+              </div>
+              <span className="grid h-11 w-11 place-items-center rounded-md bg-lavender text-plum">
+                {editingTrendingId ? <Edit3 size={20} /> : <Plus size={20} />}
+              </span>
+            </div>
+
+            <div className="grid gap-4">
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Title
+                <input
+                  className="input-field"
+                  name="title"
+                  value={trendingForm.title}
+                  onChange={handleTrendingChange}
+                  required
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Image URL
+                <input
+                  className="input-field"
+                  name="image"
+                  value={trendingForm.image}
+                  onChange={handleTrendingChange}
+                  placeholder="https://..."
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-bold text-plum">
+                Description
+                <textarea
+                  className="input-field min-h-28 resize-y"
+                  name="description"
+                  value={trendingForm.description}
+                  onChange={handleTrendingChange}
+                  required
+                />
+              </label>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button type="submit" className="btn-primary flex-1">
+                  <Save size={17} />
+                  {editingTrendingId ? "Update Design" : "Add Design"}
+                </button>
+                {editingTrendingId && (
+                  <button
+                    type="button"
+                    onClick={resetTrendingForm}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          </form>
+
+          <div className="card overflow-hidden">
+            <div className="border-b border-plum/10 p-5">
+              <h2 className="font-display text-2xl font-bold text-plum">
+                Home Trending Designs
+              </h2>
+            </div>
+            {trendingDesigns.length ? (
+              <div className="divide-y divide-plum/10">
+                {trendingDesigns.map((design) => (
+                  <article
+                    key={design.id}
+                    className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
+                  >
+                    <img
+                      src={design.image_url || design.image || boutiqueImages.intro}
+                      alt={design.title}
+                      className="h-32 w-full rounded-lg object-cover"
+                    />
+                    <div>
+                      <h3 className="font-display text-2xl font-bold text-plum">
+                        {design.title}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-ink/65">
+                        {design.description}
+                      </p>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => handleEditTrending(design)}
+                          className="btn-secondary flex-1"
+                        >
+                          <Edit3 size={17} /> Edit Design
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTrending(design.id)}
+                          className="btn-secondary flex-1"
+                        >
+                          <Trash2 size={17} /> Delete Design
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-sm text-ink/60">
+                No trending designs available. Add your first design.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Orders Tab ── */}
+      {activeTab === "orders" && (
+        <div className="mt-6 animate-fadeUp">
+          <div id="section-orders" className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr] scroll-mt-6">
+            <div className="card overflow-hidden">
+              <div className="border-b border-plum/10 p-5">
+                <h2 className="font-display text-2xl font-bold text-plum">Active Orders</h2>
+              </div>
               {whatsAppStatus && (
-                <div className={`rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
+                <div className={`m-5 rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
                   whatsAppStatus.type === "success" ? "bg-green-50 text-green-700" : "bg-rose/10 text-rose"
                 }`}>
-                  <p>{whatsAppStatus.message}</p>
+                  <div className="flex justify-between items-center gap-4">
+                    <p>{whatsAppStatus.message}</p>
+                    <button
+                      type="button"
+                      onClick={() => setWhatsAppStatus(null)}
+                      className="text-current opacity-70 hover:opacity-100 text-xs font-bold"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                   {whatsAppStatus.link && (
                     <a
                       href={whatsAppStatus.link}
@@ -1134,81 +1050,364 @@ export default function AdminDashboard() {
                   )}
                 </div>
               )}
-            </div>
-          </form>
+              {activeOrders.length ? (
+                <div className="divide-y divide-plum/10">
+                  {activeOrders.map((order) => (
+                    <article key={order.id} className="grid gap-4 p-5 lg:grid-cols-[140px_1fr]">
+                      <img src={order.fabric_image || order.fabricImage} alt="Uploaded fabric" className="h-36 w-full rounded-lg object-cover" />
+                      <div>
+                        <div className="flex flex-col justify-between gap-3 sm:flex-row">
+                          <div>
+                            <p className="text-xs font-bold uppercase text-gold">{order.id}</p>
+                            <h3 className="font-display text-2xl font-bold text-plum">{order.outfit?.title || order.outfit_type}</h3>
+                            <p className="text-sm text-ink/58">
+                              {order.customer_name || order.user_name} · {order.customer_email || order.user_email}
+                            </p>
+                          </div>
+                          <label className="grid gap-2 text-sm font-bold text-plum">
+                            Update Order Status
+                            <select
+                              className="input-field max-w-56"
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                            >
+                              {orderStatusOptions.map((s) => <option key={s}>{s}</option>)}
+                            </select>
+                          </label>
+                        </div>
 
+                        {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <Info label="Price"   value={formatPrice(order.price)} />
+                            <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
+                            <Info label="Type"    value="Ready-made Product" />
+                          </div>
+                        ) : (
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <Info label="Price"   value={formatPrice(order.price)} />
+                            <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
+                            <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
+                            <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
+                            <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
+                          </div>
+                        )}
 
-          {/* ── Feedback ── */}
-          <div id="section-feedback" className="card p-5 scroll-mt-6">
-            <h2 className="font-display text-2xl font-bold text-plum">Recent Feedback</h2>
-            <div className="mt-4 grid gap-3">
-              {feedback.length ? (
-                feedback.map((item) => (
-                  <article key={item.id} className="rounded-lg bg-cream p-4">
-                    <p className="font-bold text-plum">{item.name}</p>
-                    <p className="text-xs font-bold uppercase text-gold">{item.rating}/5 · {item.outfit_type}</p>
-                    <p className="mt-2 text-sm leading-6 text-ink/68">{item.message}</p>
-                  </article>
-                ))
+                        {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && expandedOrders[order.id] && (
+                          <div className="mt-4 rounded-lg bg-cream/35 border border-plum/5 p-4 animate-fadeUp">
+                            <p className="text-xs font-bold uppercase tracking-wider text-gold mb-3">Measurements & Dimensions</p>
+                            <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                              {Object.entries(order.measurements).map(([key, val]) => {
+                                if (val === undefined || val === null || val === "") return null;
+                                const label = measurementLabels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                                return (
+                                  <div key={key} className="rounded bg-white border border-plum/5 p-2 flex flex-col justify-between shadow-sm">
+                                    <span className="text-[10px] uppercase font-bold text-plum/50 tracking-wider leading-none">{label}</span>
+                                    <span className="text-xs font-bold text-plum mt-1">{val} {order.unit || "Inches"}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => toggleMeasurements(order.id)}
+                              className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                            >
+                              {expandedOrders[order.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                              {expandedOrders[order.id] ? "Hide Measurements" : "View Measurements"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleSendWhatsApp(order)}
+                            className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                          >
+                            <MessageCircle size={14} /> Send WhatsApp
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOrder(order)}
+                            className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                          >
+                            <Trash2 size={14} /> Delete Order
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               ) : (
-                <p className="text-sm text-ink/60">No feedback yet.</p>
+                <div className="p-8 text-center text-sm text-ink/60">No active orders.</div>
               )}
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* ── Delivered Orders ─────────────────────────────────── */}
-      {deliveredOrders.length > 0 && (
-        <div className="mt-6 card overflow-hidden">
-          <div className="border-b border-plum/10 p-5">
-            <h2 className="font-display text-2xl font-bold text-plum">Previous Orders (Delivered)</h2>
-          </div>
-          <div className="divide-y divide-plum/10">
-            {deliveredOrders.map((order) => (
-              <article key={order.id} className="grid gap-4 p-5 lg:grid-cols-[140px_1fr]">
-                <img src={order.fabric_image || order.fabricImage} alt="Uploaded fabric" className="h-36 w-full rounded-lg object-cover" />
-                <div>
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                    <div>
-                      <p className="text-xs font-bold uppercase text-gold">{order.id}</p>
-                      <h3 className="font-display text-2xl font-bold text-plum">{order.outfit?.title || order.outfit_type}</h3>
-                      <p className="text-sm text-ink/58">
-                        {order.customer_name || order.user_name} · {order.customer_email || order.user_email}
-                      </p>
-                    </div>
-                    <span className="h-fit rounded-md bg-green-100 px-4 py-2 text-sm font-bold text-green-700">
-                      ✅ Delivered
-                    </span>
+            <div className="grid gap-6">
+              {/* ── Add Offline Customer Order ── */}
+              <form className="card p-5" onSubmit={handleOfflineSubmit}>
+                <h2 className="font-display text-2xl font-bold text-plum">Add Offline Customer Order</h2>
+                <p className="mt-2 text-sm text-ink/60">Enter customer details and product for offline customers.</p>
+
+                <div className="mt-4 grid gap-3">
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    Customer Name
+                    <input className="input-field" name="customerName" value={offlineForm.customerName} onChange={handleOfflineChange} required />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    Email
+                    <input className="input-field" type="email" name="customerEmail" value={offlineForm.customerEmail} onChange={handleOfflineChange} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    WhatsApp Mobile Number
+                    <input className="input-field" name="customerPhone" value={offlineForm.customerPhone} onChange={handleOfflineChange} placeholder="9876543210 or 919876543210" required />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    Outfit Title (optional)
+                    <input className="input-field" name="outfitTitle" value={offlineForm.outfitTitle} onChange={handleOfflineChange} />
+                  </label>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="grid gap-2 text-sm font-bold text-plum">
+                      Category
+                      <select className="input-field" name="outfitCategory" value={offlineForm.outfitCategory} onChange={handleOfflineChange}>
+                        {["Blouse", "Kurti", "Long Frock", "Lehenga"].map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    </label>
+                    <label className="grid gap-2 text-sm font-bold text-plum">
+                      Price
+                      <input className="input-field" type="number" min="0" name="price" value={offlineForm.price} onChange={handleOfflineChange} />
+                    </label>
                   </div>
 
-                  {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      <Info label="Price"   value={formatPrice(order.price)} />
-                      <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
-                      <Info label="Type"    value="Ready-made Product" />
-                    </div>
-                  ) : (
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      <Info label="Price"   value={formatPrice(order.price)} />
-                      <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
-                      <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
-                      <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
-                      <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    Fabric Image URL (optional)
+                    <input className="input-field" name="fabricImage" value={offlineForm.fabricImage} onChange={handleOfflineChange} placeholder="https://..." />
+                  </label>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <label className="grid gap-2 text-sm font-bold text-plum">
+                      Neck
+                      <select className="input-field" name="neckStyle" value={offlineForm.neckStyle} onChange={handleOfflineChange}>
+                        {["Round", "V-neck", "Boat"].map((n) => <option key={n}>{n}</option>)}
+                      </select>
+                    </label>
+                    <label className="grid gap-2 text-sm font-bold text-plum">
+                      Sleeve
+                      <select className="input-field" name="sleeveStyle" value={offlineForm.sleeveStyle} onChange={handleOfflineChange}>
+                        {["Short", "3/4", "Full"].map((s) => <option key={s}>{s}</option>)}
+                      </select>
+                    </label>
+                    <label className="grid gap-2 text-sm font-bold text-plum">
+                      Fitting
+                      <select className="input-field" name="fittingStyle" value={offlineForm.fittingStyle} onChange={handleOfflineChange}>
+                        {["Regular", "Slim", "Loose"].map((f) => <option key={f}>{f}</option>)}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="mt-3 flex gap-3">
+                    <button type="submit" className="btn-primary flex-1">
+                      <Save size={17} /> Save & Send WhatsApp
+                    </button>
+                    <button type="button" onClick={resetOfflineForm} className="btn-secondary">Cancel</button>
+                  </div>
+
+                  {whatsAppStatus && (
+                    <div className={`rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
+                      whatsAppStatus.type === "success" ? "bg-green-50 text-green-700" : "bg-rose/10 text-rose"
+                    }`}>
+                      <p>{whatsAppStatus.message}</p>
+                      {whatsAppStatus.link && (
+                        <a
+                          href={whatsAppStatus.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-primary py-1.5 px-3 text-xs w-fit bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5"
+                        >
+                          <MessageCircle size={14} /> Open WhatsApp Chat
+                        </a>
+                      )}
                     </div>
                   )}
-
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                    <button type="button" onClick={() => handleSendWhatsApp(order)} className="btn-secondary flex-1">
-                      <MessageCircle size={17} /> Send WhatsApp
-                    </button>
-                    <button type="button" onClick={() => handleDeleteOrder(order)} className="btn-secondary flex-1">
-                      <Trash2 size={17} /> Delete Order
-                    </button>
-                  </div>
                 </div>
-              </article>
-            ))}
+              </form>
+            </div>
+          </div>
+
+          {/* Previous Orders (Delivered) */}
+          {deliveredOrders.length > 0 && (
+            <div className="mt-6 card overflow-hidden">
+              <div className="border-b border-plum/10 p-5">
+                <h2 className="font-display text-2xl font-bold text-plum">Previous Orders (Delivered)</h2>
+              </div>
+              <div className="divide-y divide-plum/10">
+                {deliveredOrders.map((order) => (
+                  <article key={order.id} className="grid gap-4 p-5 lg:grid-cols-[140px_1fr]">
+                    <img src={order.fabric_image || order.fabricImage} alt="Uploaded fabric" className="h-36 w-full rounded-lg object-cover" />
+                    <div>
+                      <div className="flex flex-col justify-between gap-3 sm:flex-row">
+                        <div>
+                          <p className="text-xs font-bold uppercase text-gold">{order.id}</p>
+                          <h3 className="font-display text-2xl font-bold text-plum">{order.outfit?.title || order.outfit_type}</h3>
+                          <p className="text-sm text-ink/58">
+                            {order.customer_name || order.user_name} · {order.customer_email || order.user_email}
+                          </p>
+                        </div>
+                        <span className="h-fit rounded-md bg-green-100 px-4 py-2 text-sm font-bold text-green-700">
+                          ✅ Delivered
+                        </span>
+                      </div>
+
+                      {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <Info label="Price"   value={formatPrice(order.price)} />
+                          <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
+                          <Info label="Type"    value="Ready-made Product" />
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <Info label="Price"   value={formatPrice(order.price)} />
+                          <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
+                          <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
+                          <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
+                          <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
+                        </div>
+                      )}
+
+                      {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && expandedOrders[order.id] && (
+                        <div className="mt-4 rounded-lg bg-cream/35 border border-plum/5 p-4 animate-fadeUp">
+                          <p className="text-xs font-bold uppercase tracking-wider text-gold mb-3">Measurements & Dimensions</p>
+                          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                            {Object.entries(order.measurements).map(([key, val]) => {
+                              if (val === undefined || val === null || val === "") return null;
+                              const label = measurementLabels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                              return (
+                                <div key={key} className="rounded bg-white border border-plum/5 p-2 flex flex-col justify-between shadow-sm">
+                                  <span className="text-[10px] uppercase font-bold text-plum/50 tracking-wider leading-none">{label}</span>
+                                  <span className="text-xs font-bold text-plum mt-1">{val} {order.unit || "Inches"}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleMeasurements(order.id)}
+                            className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                          >
+                            {expandedOrders[order.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                            {expandedOrders[order.id] ? "Hide Measurements" : "View Measurements"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleSendWhatsApp(order)}
+                          className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                        >
+                          <MessageCircle size={14} /> Send WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOrder(order)}
+                          className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                        >
+                          <Trash2 size={14} /> Delete Order
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Customers Tab ── */}
+      {activeTab === "customers" && (
+        <div className="card overflow-hidden mt-6 animate-fadeUp">
+          <div className="border-b border-plum/10 p-5 bg-white">
+            <h2 className="font-display text-2xl font-bold text-plum">Registered Customers</h2>
+          </div>
+
+          {customerStats.length ? (
+            <div className="divide-y divide-plum/10">
+              {customerStats.map((customer) => (
+                <article
+                  key={customer.id || customer.email}
+                  className="grid gap-4 p-5 md:grid-cols-[2fr_1fr_1fr] items-center"
+                >
+                  <div>
+                    <h3 className="font-display text-xl font-bold text-plum">{customer.name}</h3>
+                    <div className="mt-2 flex flex-col gap-1 text-sm text-ink/65">
+                      <span className="flex items-center gap-2">
+                        <Mail size={14} className="text-gold" />
+                        <a href={`mailto:${customer.email}`} className="hover:text-plum hover:underline">
+                          {customer.email}
+                        </a>
+                      </span>
+                      {customer.phone && (
+                        <span className="flex items-center gap-2">
+                          <Phone size={14} className="text-gold" />
+                          <span>{customer.phone}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-left md:text-center">
+                    <p className="text-xs font-bold uppercase text-ink/50">Total Orders</p>
+                    <p className="text-lg font-bold text-plum">{customer.ordersCount} orders</p>
+                    <p className="text-xs text-ink/60">Spent: {formatPrice(customer.totalSpent)}</p>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    {customer.phone ? (
+                      <a
+                        href={`https://wa.me/${normalizeWhatsAppPhone(customer.phone)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-primary inline-flex items-center gap-2 text-xs bg-green-600 hover:bg-green-700 text-white w-full md:w-auto justify-center py-2 px-4 shadow-sm"
+                      >
+                        <MessageCircle size={15} />
+                        WhatsApp Chat
+                      </a>
+                    ) : (
+                      <span className="text-xs text-ink/40 font-semibold italic">No phone contact</span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center text-sm text-ink/60">No customer accounts registered yet.</div>
+          )}
+        </div>
+      )}
+
+      {/* ── Feedback Tab ── */}
+      {activeTab === "feedback" && (
+        <div id="section-feedback" className="card p-5 mt-6 scroll-mt-6 animate-fadeUp">
+          <h2 className="font-display text-2xl font-bold text-plum">Recent Feedback</h2>
+          <div className="mt-4 grid gap-3">
+            {feedback.length ? (
+              feedback.map((item) => (
+                <article key={item.id} className="rounded-lg bg-cream p-4">
+                  <p className="font-bold text-plum">{item.name}</p>
+                  <p className="text-xs font-bold uppercase text-gold">{item.rating}/5 · {item.outfit_type}</p>
+                  <p className="mt-2 text-sm leading-6 text-ink/68">{item.message}</p>
+                </article>
+              ))
+            ) : (
+              <p className="text-sm text-ink/60">No feedback yet.</p>
+            )}
           </div>
         </div>
       )}

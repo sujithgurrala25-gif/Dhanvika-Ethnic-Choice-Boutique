@@ -1,4 +1,4 @@
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
 import {
   collection,
   addDoc,
@@ -10,7 +10,6 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useEffect, useState } from "react";
 import {
   ChevronLeft,
@@ -46,7 +45,6 @@ export default function Gallery() {
     }
   }
 
-  const [uploadedImages, setUploadedImages] = useState([]);
   const [lightbox, setLightbox] = useState(null);
   const [form, setForm] = useState({
     id: null,
@@ -58,33 +56,6 @@ export default function Gallery() {
 
   function resetForm() {
     setForm({ id: null, title: "", category: "", description: "", images: "" });
-    setUploadedImages([]);
-  }
-
-  //new
-  async function handleFileUpload(event) {
-    const files = Array.from(event.target.files || []);
-
-    if (!files.length) return;
-
-    try {
-      const uploadedUrls = await Promise.all(
-        files.map(async (file) => {
-          const storageRef = ref(storage, `gallery/${Date.now()}-${file.name}`);
-
-          await uploadBytes(storageRef, file);
-
-          return await getDownloadURL(storageRef);
-        }),
-      );
-
-      setUploadedImages((prev) => [...prev, ...uploadedUrls]);
-    } catch (error) {
-      console.error(error);
-      alert("Image upload failed");
-    }
-
-    event.target.value = "";
   }
 
   async function handleSubmit(event) {
@@ -92,17 +63,16 @@ export default function Gallery() {
 
     if (!form.title.trim() || !form.category.trim()) return;
 
-    const urlImages = form.images
+    const images = form.images
       .split("\n")
       .map((img) => img.trim())
       .filter(Boolean);
-
-    const images = [...new Set([...uploadedImages, ...urlImages])];
 
     const data = {
       title: form.title.trim(),
       category: form.category.trim(),
       description: form.description.trim(),
+      image: images[0] || "",
       images,
     };
 
@@ -122,26 +92,20 @@ export default function Gallery() {
       resetForm();
     } catch (error) {
       console.error(error);
+      alert("Failed to save gallery work: " + error.message);
     }
   }
 
   function handleEdit(item) {
-    const allImages = item.images || [item.image];
-    const uploaded = allImages.filter(
-      (img) => typeof img === "string" && img.startsWith("data:"),
-    );
-    const urls = allImages.filter(
-      (img) => !(typeof img === "string" && img.startsWith("data:")),
-    );
+    const allImages = (item.images || [item.image]).filter(Boolean);
 
     setForm({
       id: item.id,
       title: item.title,
       category: item.category,
       description: item.description,
-      images: urls.join("\n"),
+      images: allImages.join("\n"),
     });
-    setUploadedImages(uploaded);
   }
 
   //new
@@ -179,9 +143,9 @@ export default function Gallery() {
     setLightbox((prev) =>
       prev
         ? {
-            itemId: prev.itemId,
-            imageIndex: (prev.imageIndex - 1 + images.length) % images.length,
-          }
+          itemId: prev.itemId,
+          imageIndex: (prev.imageIndex - 1 + images.length) % images.length,
+        }
         : prev,
     );
   }
@@ -194,9 +158,9 @@ export default function Gallery() {
     setLightbox((prev) =>
       prev
         ? {
-            itemId: prev.itemId,
-            imageIndex: (prev.imageIndex + 1) % images.length,
-          }
+          itemId: prev.itemId,
+          imageIndex: (prev.imageIndex + 1) % images.length,
+        }
         : prev,
     );
   }
@@ -208,9 +172,7 @@ export default function Gallery() {
           <p className="mb-3 text-sm font-bold uppercase text-gold">Gallery</p>
           <h1 className="section-title">Previous Works Showcase</h1>
           <p className="mt-4 max-w-3xl text-ink/70 leading-7">
-            This public gallery page is visible to everyone. It gives admins a
-            clean place to showcase completed outfits, premium stitching
-            samples, and previous work for visitors to browse.
+            Explore our gallery of previous works, showcasing custom stitching samples, premium outfits, and completed designs.
           </p>
         </div>
       </div>
@@ -266,37 +228,10 @@ export default function Gallery() {
                 }))
               }
             />
-            <div className="md:col-span-2 rounded-xl border border-dashed border-plum/20 bg-cream/70 p-4">
-              <label className="mb-2 block text-sm font-semibold text-plum">
-                Upload images
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileUpload}
-                className="block w-full text-sm text-ink/70 file:mr-4 file:rounded-md file:border-0 file:bg-plum file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-plum/90"
-              />
-              <p className="mt-2 text-xs text-ink/60">
-                You can upload local images here, or paste image URLs below.
-              </p>
-              {uploadedImages.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {uploadedImages.map((img, index) => (
-                    <img
-                      key={`${img}-${index}`}
-                      src={img}
-                      alt="Uploaded preview"
-                      className="h-16 w-16 rounded-md object-cover border border-plum/10"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
             <textarea
               className="input-field md:col-span-2"
-              rows="3"
-              placeholder="Or paste image URLs (one per line). These will be added alongside uploaded images."
+              rows="4"
+              placeholder="Paste image URLs (one per line)."
               value={form.images}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, images: event.target.value }))
@@ -313,8 +248,7 @@ export default function Gallery() {
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {galleryWorks.map((item) => {
-          const images =
-            item.images && item.images.length ? item.images : [item.image];
+          const images = (item.images || [item.image]).filter(Boolean);
           return (
             <article key={item.id} className="card overflow-hidden">
               <button
@@ -323,14 +257,21 @@ export default function Gallery() {
                 className="block w-full text-left"
               >
                 <div className="grid gap-2 p-2">
-                  {images.slice(0, 3).map((image, index) => (
-                    <img
-                      key={`${item.id}-${index}`}
-                      src={image}
-                      alt={`${item.title} ${index + 1}`}
-                      className={`w-full rounded-xl object-cover ${images.length > 1 ? "h-28" : "h-56"}`}
-                    />
-                  ))}
+                  {images.length > 0 ? (
+                    images.slice(0, 3).map((image, index) => (
+                      <img
+                        key={`${item.id}-${index}`}
+                        src={image}
+                        alt={`${item.title} ${index + 1}`}
+                        className={`w-full rounded-xl object-cover ${images.length > 1 ? "h-28" : "h-56"}`}
+                      />
+                    ))
+                  ) : (
+                    <div className="flex h-56 w-full flex-col items-center justify-center rounded-xl bg-cream/50 text-plum/40 border border-plum/5">
+                      <ImageIcon size={36} />
+                      <span className="mt-2 text-xs font-semibold">No Image Preview</span>
+                    </div>
+                  )}
                 </div>
               </button>
               <div className="p-5 pt-0">
@@ -382,8 +323,7 @@ export default function Gallery() {
       {lightbox &&
         (() => {
           const work = galleryWorks.find((item) => item.id === lightbox.itemId);
-          const images =
-            work?.images && work.images.length ? work.images : [work?.image];
+          const images = (work?.images || [work?.image]).filter(Boolean);
           const currentImage = images[lightbox.imageIndex] || images[0];
 
           return (

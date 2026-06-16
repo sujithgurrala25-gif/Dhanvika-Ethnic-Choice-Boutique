@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronDown,
   Home,
@@ -14,6 +14,8 @@ import {
   UserRound,
   Users,
   X,
+  ShoppingCart,
+  Package,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -33,10 +35,10 @@ function getNavItems(role) {
   if (role === "user" || role === "customer") {
     return [
       { to: "/", label: "Home", icon: Home },
-      { to: "/user-dashboard", label: "Products", icon: UserRound },
+      { to: "/user-dashboard?tab=browse", label: "Products", icon: UserRound },
+      { to: "/user-dashboard?tab=cart", label: "Cart", icon: ShoppingCart },
       { to: "/select-outfit", label: "Select Outfit", icon: Sparkles },
-      { to: "/previous-orders", label: "Previous Orders", icon: ShoppingBag },
-      { to: "/gallery", label: "Gallery", icon: Sparkles },
+      { to: "/user-dashboard?tab=orders", label: "My Orders", icon: Package },
       { to: "/feedback", label: "Feedback", icon: MessageSquareText },
     ];
   }
@@ -52,7 +54,17 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const navItems = getNavItems(user?.role);
+
+  const currentPath = location.pathname + location.search;
+
+  const isLinkActive = (itemTo) => {
+    if (currentPath === itemTo) return true;
+    if (itemTo === "/user-dashboard?tab=browse" && currentPath === "/user-dashboard") return true;
+    const [path] = itemTo.split("?");
+    return location.pathname === path && !itemTo.includes("tab=");
+  };
 
   async function handleLogout() {
     await logout();
@@ -60,11 +72,6 @@ export default function Navbar() {
     setDropdownOpen(false);
     navigate("/");
   }
-
-  const linkClass = ({ isActive }) =>
-    `inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
-      isActive ? "bg-plum text-white" : "text-plum hover:bg-lavender/60"
-    }`;
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/70 bg-cream/90 backdrop-blur-xl">
@@ -90,11 +97,18 @@ export default function Navbar() {
         <div className="hidden items-center gap-1 lg:flex">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const active = isLinkActive(item.to);
             return (
-              <NavLink key={item.to} to={item.to} className={linkClass}>
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  active ? "bg-plum text-white" : "text-plum hover:bg-lavender/60"
+                }`}
+              >
                 <Icon size={17} />
                 {item.label}
-              </NavLink>
+              </Link>
             );
           })}
         </div>
@@ -162,16 +176,19 @@ export default function Navbar() {
           <div className="mx-auto grid max-w-7xl gap-2">
             {navItems.map((item) => {
               const Icon = item.icon;
+              const active = isLinkActive(item.to);
               return (
-                <NavLink
+                <Link
                   key={item.to}
                   to={item.to}
-                  className={linkClass}
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                    active ? "bg-plum text-white" : "text-plum hover:bg-lavender/60"
+                  }`}
                   onClick={() => setOpen(false)}
                 >
                   <Icon size={17} />
                   {item.label}
-                </NavLink>
+                </Link>
               );
             })}
 

@@ -111,9 +111,7 @@ export default function App() {
           <Route
             path="/previous-orders"
             element={
-              <ProtectedRoute allowedRoles={["user"]}>
-                <PreviousOrders />
-              </ProtectedRoute>
+              <Navigate to="/user-dashboard?tab=orders" replace />
             }
           />
           <Route

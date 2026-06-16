@@ -195,3 +195,26 @@ textarea {
   border-radius: 999px;
   background: linear-gradient(90deg, transparent, rgba(201, 154, 46, 0.72), transparent);
 }
+
+.btn-gallery-admin {
+  background: linear-gradient(135deg, #513252, #c65f7b, #513252);
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-gallery-admin:hover {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 20px 40px rgba(198, 95, 123, 0.35);
+}
+
+.btn-gallery-admin:active {
+  transform: translateY(-2px) scale(0.98);
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
