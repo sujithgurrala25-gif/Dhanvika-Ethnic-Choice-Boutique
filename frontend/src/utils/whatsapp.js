@@ -13,7 +13,7 @@ export function normalizeWhatsAppPhone(phone) {
 }
 
 export function buildWhatsAppOrderMessage(order) {
-  return [
+  const lines = [
     `Hello ${order.customerName || "Customer"},`,
     "",
     "Your Dhanvika Ethnic Choice Boutique order has been saved.",
@@ -25,10 +25,25 @@ export function buildWhatsAppOrderMessage(order) {
     `Neck Style: ${order.customization?.neckStyle || "N/A"}`,
     `Sleeve Style: ${order.customization?.sleeveStyle || "N/A"}`,
     `Fitting: ${order.customization?.fittingStyle || "N/A"}`,
-    `Order Date: ${new Date(order.createdAt).toLocaleDateString("en-IN")}`,
-    "",
-    "Thank you for choosing Dhanvika Ethnic Choice Boutique.",
-  ].join("\n");
+  ];
+
+  if (order.measurements && Object.keys(order.measurements).length > 0) {
+    lines.push("");
+    lines.push("*Measurements:*");
+    Object.entries(order.measurements).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== "") {
+        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+        lines.push(`- ${label}: ${val} ${order.unit || "Inches"}`);
+      }
+    });
+  }
+
+  lines.push("");
+  lines.push(`Order Date: ${new Date(order.createdAt).toLocaleDateString("en-IN")}`);
+  lines.push("");
+  lines.push("Thank you for choosing Dhanvika Ethnic Choice Boutique.");
+
+  return lines.join("\n");
 }
 
 export function buildWhatsAppOrderLink(order, message = buildWhatsAppOrderMessage(order)) {

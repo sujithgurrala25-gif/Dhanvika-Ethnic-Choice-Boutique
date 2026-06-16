@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { boutiqueImages } from "../assets/images.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { orderStatusOptions } from "../utils/data.js";
+import { orderStatusOptions, measurementFieldsByOutfit } from "../utils/data.js";
 import { formatPrice } from "../utils/pricing.js";
 import {
   fetchProducts,
@@ -169,7 +169,13 @@ export default function AdminDashboard() {
   const [trendingForm, setTrendingForm] = useState(emptyTrendingForm);
   const [editingTrendingId, setEditingTrendingId] = useState("");
   const [offlineForm, setOfflineForm] = useState(emptyOfflineForm);
+  const [offlineMeasurements, setOfflineMeasurements] = useState({});
+  const [offlineUnit, setOfflineUnit] = useState("Inches");
+  const [showOfflineMeasurements, setShowOfflineMeasurements] = useState(false);
   const [whatsAppStatus, setWhatsAppStatus] = useState(null);
+
+  const offlineOutfitKey = offlineForm.outfitCategory.toLowerCase().replace(" ", "-");
+  const offlineFields = measurementFieldsByOutfit[offlineOutfitKey] || [];
 
   const loadAll = useCallback(async () => {
     try {
@@ -255,6 +261,9 @@ export default function AdminDashboard() {
 
   function resetOfflineForm() {
     setOfflineForm(emptyOfflineForm);
+    setOfflineMeasurements({});
+    setOfflineUnit("Inches");
+    setShowOfflineMeasurements(false);
   }
 
   function getCustomerPhone(order) {
@@ -304,6 +313,10 @@ export default function AdminDashboard() {
         customer_name: offlineForm.customerName.trim(),
         customer_email: offlineForm.customerEmail.trim(),
         customer_phone: formattedPhone,
+        ...(showOfflineMeasurements ? {
+          measurements: offlineMeasurements,
+          unit: offlineUnit,
+        } : {}),
       };
 
       const data = await createOrder(payload);
@@ -318,6 +331,8 @@ export default function AdminDashboard() {
         customerPhone: payload.customer_phone,
         customization: newOrder.customization,
         price: payload.total_price,
+        measurements: newOrder.measurements,
+        unit: newOrder.unit,
       };
 
       setOrders((prev) => [newOrder, ...prev]);
@@ -1207,6 +1222,62 @@ export default function AdminDashboard() {
                       </select>
                     </label>
                   </div>
+
+                  <div className="mt-2 border-t border-plum/10 pt-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-plum">
+                      <input
+                        type="checkbox"
+                        checked={showOfflineMeasurements}
+                        onChange={(e) => setShowOfflineMeasurements(e.target.checked)}
+                        className="rounded border-plum/20 text-plum focus:ring-plum"
+                      />
+                      Add Custom Measurements
+                    </label>
+                  </div>
+
+                  {showOfflineMeasurements && (
+                    <div className="grid gap-3 border border-plum/10 rounded-lg bg-cream/40 p-4 animate-fadeUp">
+                      <div className="flex items-center justify-between border-b border-plum/5 pb-2">
+                        <span className="text-xs font-bold text-plum/70">Measurements ({offlineUnit})</span>
+                        <div className="flex rounded bg-white p-0.5 shadow-sm border border-plum/5">
+                          {["Inches", "CM"].map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => setOfflineUnit(item)}
+                              className={`rounded px-2.5 py-1 text-[11px] font-bold transition ${
+                                offlineUnit === item
+                                  ? "bg-plum text-white"
+                                  : "text-plum hover:bg-lavender"
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {offlineFields.map((field) => (
+                          <label key={field.key} className="grid gap-1 text-xs font-bold text-plum">
+                            {field.name}
+                            <input
+                              className="input-field py-1.5 text-sm"
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              placeholder={offlineUnit}
+                              value={offlineMeasurements[field.key] || ""}
+                              onChange={(e) => setOfflineMeasurements({
+                                ...offlineMeasurements,
+                                [field.key]: e.target.value
+                              })}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-3 flex gap-3">
                     <button type="submit" className="btn-primary flex-1">
