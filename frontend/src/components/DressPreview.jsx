@@ -17,7 +17,7 @@ export default function DressPreview({
   const [view, setView] = useState("front"); // "front" | "back" | "side"
 
 
-  const outfitId = outfit?.id || "kurti";
+  const outfitId = outfit?.id || outfit?.title?.toLowerCase()?.replace(" ", "-") || "kurti";
   const fabric = fabricImage || boutiqueImages.fabricSilk;
 
   // Render the appropriate 2D SVG preview component

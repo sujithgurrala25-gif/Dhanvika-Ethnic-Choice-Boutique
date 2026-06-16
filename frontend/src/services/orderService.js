@@ -49,6 +49,7 @@ export async function createOrder(orderData) {
     price: orderData.total_price || orderData.price || 0,
     createdAt: new Date().toISOString(),
     outfit: {
+      id: outfit.id,
       title: outfit.title,
       image: outfit.image || ""
     },

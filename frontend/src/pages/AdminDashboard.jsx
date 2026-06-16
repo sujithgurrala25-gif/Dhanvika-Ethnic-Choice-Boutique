@@ -20,7 +20,13 @@ import {
 } from "lucide-react";
 import { boutiqueImages } from "../assets/images.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { orderStatusOptions, measurementFieldsByOutfit } from "../utils/data.js";
+import {
+  orderStatusOptions,
+  measurementFieldsByOutfit,
+  neckStyles,
+  sleeveStyles,
+  fittingOptions,
+} from "../utils/data.js";
 import { formatPrice } from "../utils/pricing.js";
 import {
   fetchProducts,
@@ -104,9 +110,9 @@ const emptyOfflineForm = {
   outfitCategory: "Blouse",
   price: "",
   fabricImage: "",
-  neckStyle: "Round",
-  sleeveStyle: "Short",
-  fittingStyle: "Regular",
+  neckStyle: "Boat Neck",
+  sleeveStyle: "Short Sleeve",
+  fittingStyle: "Regular Fit",
 };
 
 export default function AdminDashboard() {
@@ -1034,7 +1040,7 @@ export default function AdminDashboard() {
       {/* ── Orders Tab ── */}
       {activeTab === "orders" && (
         <div className="mt-6 animate-fadeUp">
-          <div id="section-orders" className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr] scroll-mt-6">
+          <div id="section-orders" className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr] items-start scroll-mt-6">
             <div className="card overflow-hidden">
               <div className="border-b border-plum/10 p-5">
                 <h2 className="font-display text-2xl font-bold text-plum">Active Orders</h2>
@@ -1196,7 +1202,6 @@ export default function AdminDashboard() {
                       <input className="input-field" type="number" min="0" name="price" value={offlineForm.price} onChange={handleOfflineChange} />
                     </label>
                   </div>
-
                   <label className="grid gap-2 text-sm font-bold text-plum">
                     Fabric Image URL (optional)
                     <input className="input-field" name="fabricImage" value={offlineForm.fabricImage} onChange={handleOfflineChange} placeholder="https://..." />
@@ -1206,19 +1211,19 @@ export default function AdminDashboard() {
                     <label className="grid gap-2 text-sm font-bold text-plum">
                       Neck
                       <select className="input-field" name="neckStyle" value={offlineForm.neckStyle} onChange={handleOfflineChange}>
-                        {["Round", "V-neck", "Boat"].map((n) => <option key={n}>{n}</option>)}
+                        {neckStyles.map((n) => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </label>
                     <label className="grid gap-2 text-sm font-bold text-plum">
                       Sleeve
                       <select className="input-field" name="sleeveStyle" value={offlineForm.sleeveStyle} onChange={handleOfflineChange}>
-                        {["Short", "3/4", "Full"].map((s) => <option key={s}>{s}</option>)}
+                        {sleeveStyles.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </label>
                     <label className="grid gap-2 text-sm font-bold text-plum">
                       Fitting
                       <select className="input-field" name="fittingStyle" value={offlineForm.fittingStyle} onChange={handleOfflineChange}>
-                        {["Regular", "Slim", "Loose"].map((f) => <option key={f}>{f}</option>)}
+                        {fittingOptions.map((f) => <option key={f} value={f}>{f}</option>)}
                       </select>
                     </label>
                   </div>
