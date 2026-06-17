@@ -12,15 +12,15 @@ function buildFirebaseOutfits(products) {
     const product = products.find(
       (item) =>
         String(item.category || "").toLowerCase() ===
-        outfit.title.toLowerCase(),
+        String(outfit.category || outfit.id || "").toLowerCase(),
     );
 
     if (!product) return outfit;
 
     return {
       ...outfit,
-      title: product.category || outfit.title,
-      image: product.image_url || product.image || outfit.image,
+      title: product.name || product.category || outfit.title,
+      image: product.image || product.image_url || outfit.image,
       basePrice: product.price || outfit.basePrice,
       description: product.description || outfit.description,
       productId: product.id,
