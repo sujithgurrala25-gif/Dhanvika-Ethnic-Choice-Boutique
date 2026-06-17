@@ -258,8 +258,8 @@ export default function Home() {
             measurements, customize style details, and track every order from
             received to delivered.
           </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {["Custom Fit", "Fabric Preview", "Order Tracking"].map((item) => (
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {["Custom Fit", "Fabric Preview"].map((item) => (
               <div
                 key={item}
                 className="rounded-lg border border-white bg-white p-4 text-center shadow-sm"
