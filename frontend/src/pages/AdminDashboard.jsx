@@ -61,6 +61,7 @@ import {
   updateProductDesign,
 } from "../services/productDesignService.js";
 import { buildWhatsAppOrderLink, buildWhatsAppReadyMessage, normalizeWhatsAppPhone } from "../utils/whatsapp.js";
+import { generateInvoicePDF } from "../utils/pdfGenerator.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
 
 const measurementLabels = {
@@ -383,6 +384,7 @@ export default function AdminDashboard() {
       resetOfflineForm();
 
       try {
+        generateInvoicePDF(orderForWA);
         const waLink = buildWhatsAppOrderLink(orderForWA);
         window.open(waLink, "_blank", "noopener,noreferrer");
         setWhatsAppStatus({
@@ -413,6 +415,7 @@ export default function AdminDashboard() {
         customization: order.customization,
         price: order.price || order.total_price,
       };
+      generateInvoicePDF(orderForWA);
       const waLink = buildWhatsAppOrderLink(orderForWA);
       window.open(waLink, "_blank", "noopener,noreferrer");
       setWhatsAppStatus({

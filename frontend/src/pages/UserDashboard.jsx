@@ -133,6 +133,44 @@ export default function UserDashboard() {
     }
   }
 
+  async function handlePlaceDirectOrder(design) {
+    const defaultPhone = user?.phone || "";
+    const input = window.prompt("Please enter your 10-digit WhatsApp mobile number to place this order:", defaultPhone);
+    if (input === null) return; // cancelled
+
+    const digits = input.replace(/\D/g, "");
+    if (digits.length < 10) {
+      alert("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
+
+    try {
+      setLoading(true);
+      await createOrder({
+        outfit_type: design.id,
+        outfit_title: design.name,
+        fabric_image: design.image || design.image_url || null,
+        total_price: design.price,
+        status: "Order Received",
+        customer_name: user.name,
+        customer_email: user.email,
+        customer_phone: formattedPhone,
+      });
+
+      const ordData = await fetchOrders();
+      setOrders(ordData.orders || []);
+      setActiveTab("orders");
+      alert("Your order has been placed successfully!");
+    } catch (err) {
+      console.error("Place direct order error:", err);
+      alert("Failed to place order. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function isInCart(productId) {
     return cart.some((item) => item.id === productId);
   }
@@ -349,6 +387,7 @@ export default function UserDashboard() {
                     inWishlist={isInWishlist(design.id)}
                     onCart={handleAddToCart}
                     onWishlist={handleWishlist}
+                    onOrder={handlePlaceDirectOrder}
                   />
                 ))}
               </div>
@@ -595,7 +634,7 @@ function ProductCard({ product, onDetails }) {
   );
 }
 
-function ProductDesignCard({ design, inCart, inWishlist, onCart, onWishlist }) {
+function ProductDesignCard({ design, inCart, inWishlist, onCart, onWishlist, onOrder }) {
   return (
     <article className="card group overflow-hidden">
       <img
@@ -621,23 +660,33 @@ function ProductDesignCard({ design, inCart, inWishlist, onCart, onWishlist }) {
             Stock: {design.stock}
           </p>
         </div>
-        <div className="mt-5 grid gap-2">
+        <div className="mt-5 flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => onCart(design)}
-            className={inCart ? "btn-primary !bg-emerald-600 hover:!bg-emerald-700" : "btn-primary"}
+            onClick={() => onOrder(design)}
+            className="btn-primary w-full"
           >
-            <ShoppingCart size={17} />
-            {inCart ? "Added to Cart" : "Add to Cart"}
+            <ShoppingBag size={17} />
+            Order Now
           </button>
-          <button
-            type="button"
-            onClick={() => onWishlist(design)}
-            className="btn-secondary"
-          >
-            <Heart size={17} fill={inWishlist ? "currentColor" : "none"} />
-            {inWishlist ? "Saved" : "Wishlist"}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onCart(design)}
+              className={inCart ? "btn-secondary !bg-emerald-50 !border-emerald-500 !text-emerald-700" : "btn-secondary"}
+            >
+              <ShoppingCart size={16} />
+              {inCart ? "Added" : "Add to Cart"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onWishlist(design)}
+              className="btn-secondary"
+            >
+              <Heart size={16} fill={inWishlist ? "currentColor" : "none"} />
+              {inWishlist ? "Saved" : "Wishlist"}
+            </button>
+          </div>
         </div>
       </div>
     </article>
