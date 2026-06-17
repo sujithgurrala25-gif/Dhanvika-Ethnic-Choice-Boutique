@@ -35,10 +35,19 @@ export async function fetchOrderById(id) {
 
 export async function createOrder(orderData) {
   // Try to find outfit details to attach for UI display compatibility
+  const outfitType = (orderData.outfit_type || "").toLowerCase();
+  const outfitTitle = (orderData.outfit_title || "").toLowerCase();
+  const outfitCat = (orderData.outfit_category || "").toLowerCase();
+
   const outfit = outfitOptions.find(
-    (o) => o.id === orderData.outfit_type || o.title.toLowerCase() === (orderData.outfit_title || "").toLowerCase()
+    (o) =>
+      o.id === outfitType ||
+      (o.category || "").toLowerCase() === outfitType ||
+      (o.category || "").toLowerCase() === outfitCat ||
+      o.title.toLowerCase() === outfitTitle
   ) || {
-    title: orderData.outfit_title || orderData.outfit_type,
+    id: outfitType || "custom",
+    title: orderData.outfit_title || orderData.outfit_type || "Custom",
     image: orderData.fabric_image || ""
   };
 
