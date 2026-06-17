@@ -110,6 +110,25 @@ const subCategoriesMap = {
   Lehenga: ["Bridal Lehenga", "A-Line Lehenga", "Designer Lehenga", "Party Wear Lehenga"],
 };
 
+const subCategoryPriceMap = {
+  "Bridal Blouse": 4500,
+  "Maggam Work Blouse": 3500,
+  "Boat Neck Blouse": 1500,
+  "Designer Blouse": 2500,
+  "Short Kurti": 1200,
+  "Long Kurti": 1800,
+  "A-Line Kurti": 2000,
+  "Anarkali Kurti": 2800,
+  "Party Wear Frock": 3500,
+  "Anarkali Frock": 4000,
+  "Layered Frock": 3800,
+  "Gown Style Frock": 5000,
+  "Bridal Lehenga": 15000,
+  "A-Line Lehenga": 7000,
+  "Designer Lehenga": 10000,
+  "Party Wear Lehenga": 8000,
+};
+
 const emptyOfflineForm = {
   customerName: "",
   customerEmail: "",
@@ -117,7 +136,7 @@ const emptyOfflineForm = {
   outfitTitle: "",
   outfitCategory: "Blouse",
   subCategory: "Bridal Blouse",
-  price: "",
+  price: 4500,
   fabricImage: "",
   neckStyle: "Boat Neck",
   sleeveStyle: "Short Sleeve",
@@ -274,7 +293,10 @@ export default function AdminDashboard() {
     const { name, value } = event.target;
     if (name === "outfitCategory") {
       const subs = subCategoriesMap[value] || [];
-      setOfflineForm({ ...offlineForm, outfitCategory: value, subCategory: subs[0] || "" });
+      const firstSub = subs[0] || "";
+      setOfflineForm({ ...offlineForm, outfitCategory: value, subCategory: firstSub, price: subCategoryPriceMap[firstSub] || "" });
+    } else if (name === "subCategory") {
+      setOfflineForm({ ...offlineForm, subCategory: value, price: subCategoryPriceMap[value] || "" });
     } else {
       setOfflineForm({ ...offlineForm, [name]: value });
     }
