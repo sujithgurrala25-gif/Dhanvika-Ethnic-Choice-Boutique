@@ -3,13 +3,13 @@ export const boutiqueImages = {
   intro:
     "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80",
   blouse:
-    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=900&q=80",
+    "https://firebasestorage.googleapis.com/v0/b/dhanvika-boutique-a8419.firebasestorage.app/o/products%2F1735234199925-blouse-pink.png?alt=media&token=c2cf3bb6-f4cf-4ca6-a5df-d1264c76b17c",
   kurti:
-    "https://images.unsplash.com/photo-1618244972963-dbee1a7edc95?auto=format&fit=crop&w=900&q=80",
+    "https://firebasestorage.googleapis.com/v0/b/dhanvika-boutique-a8419.firebasestorage.app/o/products%2F1735234223297-kurti-grey.png?alt=media&token=54d3cd2c-0e6d-495f-bef2-7efc9ab2281a",
   frock:
-    "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
+    "https://firebasestorage.googleapis.com/v0/b/dhanvika-boutique-a8419.firebasestorage.app/o/products%2F1735234250269-frock-pink.png?alt=media&token=c813a48e-2877-4581-8178-5db0d68f6a96",
   lehenga:
-    "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=900&q=80",
+    "https://firebasestorage.googleapis.com/v0/b/dhanvika-boutique-a8419.firebasestorage.app/o/products%2F1735234274950-lehenga-red.png?alt=media&token=8d23d8c1-6547-4952-b883-8a32a67e9140",
   neck: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
   sleeve:
     "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=900&q=80",

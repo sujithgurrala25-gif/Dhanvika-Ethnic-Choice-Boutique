@@ -5,7 +5,7 @@ import LoadingSpinner from "../components/LoadingSpinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 function dashboardPathFor(user) {
-  return user?.role === "admin" ? "/admin-dashboard" : "/user-dashboard";
+  return user?.role === "admin" ? "/admin-dashboard" : "/";
 }
 
 export default function Signup() {
@@ -33,7 +33,7 @@ export default function Signup() {
       setError(result.message);
       return;
     }
-    navigate("/user-dashboard");
+    navigate("/");
   }
 
   return (

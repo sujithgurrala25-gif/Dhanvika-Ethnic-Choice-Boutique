@@ -3,31 +3,35 @@ import { boutiqueImages } from "../assets/images.js";
 export const outfitOptions = [
   {
     id: "blouse",
-    title: "Blouse",
+    title: "Designer Blouse Stitching",
+    category: "Blouse",
     image: boutiqueImages.blouse,
     basePrice: 1600,
-    description: "Custom saree blouse stitching with precise neck, sleeve, and fitting choices.",
+    description: "Premium blouse stitching with custom neck, sleeve, lining, and fitting options.",
   },
   {
     id: "kurti",
-    title: "Kurti",
+    title: "Elegant Kurti Stitching",
+    category: "Kurti",
     image: boutiqueImages.kurti,
     basePrice: 1900,
-    description: "Everyday or occasion-ready kurtis shaped to your measurements.",
+    description: "Comfortable daily or festive kurti stitching based on exact body measurements.",
   },
   {
     id: "long-frock",
-    title: "Long Frock",
+    title: "Long Frock Stitching",
+    category: "Long Frock",
     image: boutiqueImages.frock,
     basePrice: 2600,
-    description: "Flowing long frocks with premium finishing and elegant silhouettes.",
+    description: "Flowing long frock design with graceful fall, neat finish, and modern silhouette.",
   },
   {
     id: "lehenga",
-    title: "Lehenga",
+    title: "Bridal Lehenga Stitching",
+    category: "Lehenga",
     image: boutiqueImages.lehenga,
     basePrice: 5200,
-    description: "Statement lehengas with structured fitting, lining, and optional handwork.",
+    description: "Occasion-ready lehenga stitching with lining, embroidery, tassels, and structured fit.",
   },
 ];
 

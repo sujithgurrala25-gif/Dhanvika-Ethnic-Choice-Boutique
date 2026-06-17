@@ -9,6 +9,7 @@ import {
   Sparkles,
   Star,
   ShoppingBag,
+  Eye,
 } from "lucide-react";
 import { boutiqueImages } from "../assets/images.js";
 import designerSketchbook from "../assets/designer_sketchbook.png";
@@ -35,8 +36,9 @@ function buildOutfitCards(products) {
 
     byCategory.set(category, {
       id: product.id,
-      title: category,
-      image: product.image_url || product.image || fallback?.image,
+      title: product.name || category,
+      category: category,
+      image: product.image || product.image_url || fallback?.image,
       description: product.description || fallback?.description || "",
       basePrice: product.price || fallback?.basePrice,
     });

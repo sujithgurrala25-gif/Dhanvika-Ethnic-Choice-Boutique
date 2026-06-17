@@ -9,6 +9,7 @@ import {
   reauthenticateWithCredential,
   updatePassword,
   sendPasswordResetEmail,
+  signInAnonymously,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -22,6 +23,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        if (firebaseUser.isAnonymous) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         const userRef = doc(db, "users", firebaseUser.uid);
         let snap = await getDoc(userRef);
 
@@ -46,6 +53,9 @@ export function AuthProvider({ children }) {
         });
       } else {
         setUser(null);
+        signInAnonymously(auth).catch((err) => {
+          console.error("Anonymous authentication failed:", err);
+        });
       }
 
       setLoading(false);
