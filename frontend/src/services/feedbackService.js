@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, setDoc, addDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { defaultFeedback } from "../utils/data.js";
 
@@ -38,6 +38,12 @@ export async function createFeedback(feedbackData) {
   };
   const docRef = await addDoc(collection(db, FEEDBACK_COL), payload);
   return { feedback: { id: docRef.id, ...payload } };
+}
+
+export async function updateFeedback(id, feedbackData) {
+  const docRef = doc(db, FEEDBACK_COL, id);
+  await updateDoc(docRef, feedbackData);
+  return { feedback: { id, ...feedbackData } };
 }
 
 export async function deleteFeedback(id) {

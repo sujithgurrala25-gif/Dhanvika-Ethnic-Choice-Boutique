@@ -206,7 +206,7 @@ export default function Home() {
                 },
                 {
                   icon: Clock,
-                  title: "TIMELY DELIVERY",
+                  title: "TIMELY STITCHING",
                   desc: "On time, every time",
                 },
               ].map((item, idx) => {

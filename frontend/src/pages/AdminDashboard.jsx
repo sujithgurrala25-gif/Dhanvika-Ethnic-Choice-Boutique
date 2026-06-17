@@ -43,6 +43,7 @@ import {
 import {
   fetchFeedback,
   deleteFeedback,
+  updateFeedback,
 } from "../services/feedbackService.js";
 import {
   fetchUsers,
@@ -179,6 +180,13 @@ export default function AdminDashboard() {
   const [offlineUnit, setOfflineUnit] = useState("Inches");
   const [showOfflineMeasurements, setShowOfflineMeasurements] = useState(false);
   const [whatsAppStatus, setWhatsAppStatus] = useState(null);
+  const [editingFeedbackId, setEditingFeedbackId] = useState("");
+  const [feedbackForm, setFeedbackForm] = useState({
+    name: "",
+    rating: 5,
+    outfit_type: "Blouse",
+    message: "",
+  });
 
   const offlineOutfitKey = offlineForm.outfitCategory.toLowerCase().replace(" ", "-");
   const offlineFields = measurementFieldsByOutfit[offlineOutfitKey] || [];
@@ -593,6 +601,52 @@ export default function AdminDashboard() {
       setWhatsAppStatus({ type: "success", message: `Order ${order.id} deleted.` });
     } catch (err) {
       setWhatsAppStatus({ type: "error", message: err.message || "Failed to delete order." });
+    }
+  }
+
+  function handleEditFeedback(fb) {
+    setEditingFeedbackId(fb.id);
+    setFeedbackForm({
+      name: fb.name || "",
+      rating: fb.rating || 5,
+      outfit_type: fb.outfit_type || fb.outfitType || "Blouse",
+      message: fb.message || "",
+    });
+  }
+
+  async function handleFeedbackSubmit(event) {
+    event.preventDefault();
+    try {
+      const updated = {
+        name: feedbackForm.name.trim(),
+        rating: Number(feedbackForm.rating),
+        outfit_type: feedbackForm.outfit_type,
+        message: feedbackForm.message.trim(),
+      };
+      await updateFeedback(editingFeedbackId, updated);
+      setFeedback((prev) =>
+        prev.map((fb) =>
+          fb.id === editingFeedbackId ? { ...fb, ...updated } : fb
+        )
+      );
+      setEditingFeedbackId("");
+      setFeedbackForm({ name: "", rating: 5, outfit_type: "Blouse", message: "" });
+    } catch (err) {
+      console.error("Feedback update error:", err);
+    }
+  }
+
+  async function handleDeleteFeedback(feedbackId) {
+    const confirmed = window.confirm("Are you sure you want to delete this feedback?");
+    if (!confirmed) return;
+    try {
+      await deleteFeedback(feedbackId);
+      setFeedback((prev) => prev.filter((fb) => fb.id !== feedbackId));
+      if (editingFeedbackId === feedbackId) {
+        setEditingFeedbackId("");
+      }
+    } catch (err) {
+      console.error("Delete feedback error:", err);
     }
   }
 
@@ -1470,20 +1524,124 @@ export default function AdminDashboard() {
 
       {/* ── Feedback Tab ── */}
       {activeTab === "feedback" && (
-        <div id="section-feedback" className="card p-5 mt-6 scroll-mt-6 animate-fadeUp">
-          <h2 className="font-display text-2xl font-bold text-plum">Recent Feedback</h2>
-          <div className="mt-4 grid gap-3">
-            {feedback.length ? (
-              feedback.map((item) => (
-                <article key={item.id} className="rounded-lg bg-cream p-4">
-                  <p className="font-bold text-plum">{item.name}</p>
-                  <p className="text-xs font-bold uppercase text-gold">{item.rating}/5 · {item.outfit_type}</p>
-                  <p className="mt-2 text-sm leading-6 text-ink/68">{item.message}</p>
-                </article>
-              ))
-            ) : (
-              <p className="text-sm text-ink/60">No feedback yet.</p>
-            )}
+        <div id="section-feedback" className={`grid gap-6 ${editingFeedbackId ? "xl:grid-cols-[0.85fr_1.15fr]" : ""} mt-6 scroll-mt-6 animate-fadeUp`}>
+          {editingFeedbackId && (
+            <form className="card h-fit p-5" onSubmit={handleFeedbackSubmit}>
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase text-gold">Edit Feedback</p>
+                  <h2 className="font-display text-2xl font-bold text-plum">Feedback Form</h2>
+                </div>
+                <span className="grid h-11 w-11 place-items-center rounded-md bg-lavender text-plum">
+                  <Edit3 size={20} />
+                </span>
+              </div>
+
+              <div className="grid gap-4">
+                <label className="grid gap-2 text-sm font-bold text-plum">
+                  Customer Name
+                  <input
+                    className="input-field"
+                    value={feedbackForm.name}
+                    onChange={(e) => setFeedbackForm({ ...feedbackForm, name: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    Rating
+                    <select
+                      className="input-field"
+                      value={feedbackForm.rating}
+                      onChange={(e) => setFeedbackForm({ ...feedbackForm, rating: Number(e.target.value) })}
+                    >
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <option key={num} value={num}>
+                          {num} Star{num > 1 ? "s" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="grid gap-2 text-sm font-bold text-plum">
+                    Outfit Type
+                    <input
+                      className="input-field"
+                      value={feedbackForm.outfit_type}
+                      onChange={(e) => setFeedbackForm({ ...feedbackForm, outfit_type: e.target.value })}
+                      required
+                    />
+                  </label>
+                </div>
+
+                <label className="grid gap-2 text-sm font-bold text-plum">
+                  Feedback Message
+                  <textarea
+                    className="input-field min-h-28 resize-y"
+                    value={feedbackForm.message}
+                    onChange={(e) => setFeedbackForm({ ...feedbackForm, message: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button type="submit" className="btn-primary flex-1">
+                    <Save size={17} />
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingFeedbackId("");
+                      setFeedbackForm({ name: "", rating: 5, outfit_type: "Blouse", message: "" });
+                    }}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          <div className="card p-5">
+            <h2 className="font-display text-2xl font-bold text-plum">Recent Feedback</h2>
+            <div className="mt-4 grid gap-3">
+              {feedback.length ? (
+                feedback.map((item) => (
+                  <article key={item.id} className="rounded-lg bg-cream p-4 border border-plum/5">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <p className="font-bold text-plum">{item.name}</p>
+                        <p className="text-xs font-bold uppercase text-gold">{item.rating}/5 · {item.outfit_type || item.outfitType}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleEditFeedback(item)}
+                          className="p-1.5 text-plum/60 hover:text-plum hover:bg-lavender/40 rounded transition"
+                          title="Edit Review"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeedback(item.id)}
+                          className="p-1.5 text-rose/70 hover:text-rose hover:bg-rose/10 rounded transition"
+                          title="Delete Review"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-ink/68">"{item.message}"</p>
+                  </article>
+                ))
+              ) : (
+                <p className="text-sm text-ink/60">No feedback yet.</p>
+              )}
+            </div>
           </div>
         </div>
       )}
