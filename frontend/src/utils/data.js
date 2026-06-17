@@ -8,6 +8,12 @@ export const outfitOptions = [
     image: boutiqueImages.blouse,
     basePrice: 1600,
     description: "Premium blouse stitching with custom neck, sleeve, lining, and fitting options.",
+    subDesigns: [
+      { id: "bridal-blouse", title: "Bridal Blouse", description: "Luxurious bridal blouse with heavy embroidery, rich silk lining, and intricate beadwork." },
+      { id: "maggam-work-blouse", title: "Maggam Work Blouse", description: "Traditional maggam work with gold/silver thread, zardosi, and mirror embellishments." },
+      { id: "boat-neck-blouse", title: "Boat Neck Blouse", description: "Elegant boat neck style with a clean finish, perfect for sarees and festive wear." },
+      { id: "designer-blouse", title: "Designer Blouse", description: "Trendy designer blouse with modern cuts, patchwork, and unique style patterns." },
+    ],
   },
   {
     id: "kurti",
@@ -16,6 +22,12 @@ export const outfitOptions = [
     image: boutiqueImages.kurti,
     basePrice: 1900,
     description: "Comfortable daily or festive kurti stitching based on exact body measurements.",
+    subDesigns: [
+      { id: "short-kurti", title: "Short Kurti", description: "Casual hip-length kurti with comfortable fit, ideal for everyday and office wear." },
+      { id: "long-kurti", title: "Long Kurti", description: "Floor-length kurti with graceful drape, suitable for festive and semi-formal occasions." },
+      { id: "a-line-kurti", title: "A-Line Kurti", description: "Classic A-line silhouette with a flattering flare that suits all body types." },
+      { id: "anarkali-kurti", title: "Anarkali Kurti", description: "Royal Anarkali pattern with fitted bodice and flowing skirt for a regal look." },
+    ],
   },
   {
     id: "long-frock",
@@ -24,6 +36,12 @@ export const outfitOptions = [
     image: boutiqueImages.frock,
     basePrice: 2600,
     description: "Flowing long frock design with graceful fall, neat finish, and modern silhouette.",
+    subDesigns: [
+      { id: "party-wear-frock", title: "Party Wear Frock", description: "Glamorous party wear frock with stylish cuts, shimmer fabric, and modern design." },
+      { id: "anarkali-frock", title: "Anarkali Frock", description: "Traditional Anarkali frock with a full flare, rich embroidery, and elegant look." },
+      { id: "layered-frock", title: "Layered Frock", description: "Multi-layered frock with tiered skirt, adding volume and a beautiful cascading effect." },
+      { id: "gown-style-frock", title: "Gown Style Frock", description: "Western-inspired gown style frock with a structured bodice and flowing trail." },
+    ],
   },
   {
     id: "lehenga",
@@ -32,6 +50,12 @@ export const outfitOptions = [
     image: boutiqueImages.lehenga,
     basePrice: 5200,
     description: "Occasion-ready lehenga stitching with lining, embroidery, tassels, and structured fit.",
+    subDesigns: [
+      { id: "bridal-lehenga", title: "Bridal Lehenga", description: "Grand bridal lehenga with heavy zari, stone work, cancan lining, and custom blouse." },
+      { id: "a-line-lehenga", title: "A-Line Lehenga", description: "Sleek A-line lehenga with minimal flare for a modern, elegant bridal or festive look." },
+      { id: "designer-lehenga", title: "Designer Lehenga", description: "Contemporary designer lehenga with unique prints, cutwork, and fusion styling." },
+      { id: "party-wear-lehenga", title: "Party Wear Lehenga", description: "Lightweight party wear lehenga with sequins, shimmer, and comfortable fit for events." },
+    ],
   },
 ];
 
