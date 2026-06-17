@@ -34,10 +34,10 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-cream text-ink">
+    <div className="flex flex-col min-h-screen bg-cream text-ink">
       <ScrollToTop />
       <Navbar />
-      <main>
+      <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/gallery" element={<Gallery />} />
