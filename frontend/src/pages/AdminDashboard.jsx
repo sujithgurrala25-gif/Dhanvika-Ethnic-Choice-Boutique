@@ -103,12 +103,20 @@ const emptyDesignForm = {
   description: "",
 };
 
+const subCategoriesMap = {
+  Blouse: ["Bridal Blouse", "Maggam Work Blouse", "Boat Neck Blouse", "Designer Blouse"],
+  Kurti: ["Short Kurti", "Long Kurti", "A-Line Kurti", "Anarkali Kurti"],
+  "Long Frock": ["Party Wear Frock", "Anarkali Frock", "Layered Frock", "Gown Style Frock"],
+  Lehenga: ["Bridal Lehenga", "A-Line Lehenga", "Designer Lehenga", "Party Wear Lehenga"],
+};
+
 const emptyOfflineForm = {
   customerName: "",
   customerEmail: "",
   customerPhone: "",
   outfitTitle: "",
   outfitCategory: "Blouse",
+  subCategory: "Bridal Blouse",
   price: "",
   fabricImage: "",
   neckStyle: "Boat Neck",
@@ -263,7 +271,13 @@ export default function AdminDashboard() {
   }
 
   function handleOfflineChange(event) {
-    setOfflineForm({ ...offlineForm, [event.target.name]: event.target.value });
+    const { name, value } = event.target;
+    if (name === "outfitCategory") {
+      const subs = subCategoriesMap[value] || [];
+      setOfflineForm({ ...offlineForm, outfitCategory: value, subCategory: subs[0] || "" });
+    } else {
+      setOfflineForm({ ...offlineForm, [name]: value });
+    }
   }
 
   function resetOfflineForm() {
@@ -310,8 +324,9 @@ export default function AdminDashboard() {
       const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
       const payload = {
         outfit_type: offlineForm.outfitCategory,
-        outfit_title: offlineForm.outfitTitle.trim() || `${offlineForm.outfitCategory} - Custom`,
+        outfit_title: offlineForm.outfitTitle.trim() || `${offlineForm.subCategory || offlineForm.outfitCategory} - Custom`,
         outfit_category: offlineForm.outfitCategory,
+        sub_category: offlineForm.subCategory,
         total_price: Number(offlineForm.price) || 0,
         neck_style: offlineForm.neckStyle,
         sleeve_style: offlineForm.sleeveStyle,
@@ -1202,11 +1217,17 @@ export default function AdminDashboard() {
                     <input className="input-field" name="outfitTitle" value={offlineForm.outfitTitle} onChange={handleOfflineChange} />
                   </label>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-3">
                     <label className="grid gap-2 text-sm font-bold text-plum">
                       Category
                       <select className="input-field" name="outfitCategory" value={offlineForm.outfitCategory} onChange={handleOfflineChange}>
                         {["Blouse", "Kurti", "Long Frock", "Lehenga"].map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    </label>
+                    <label className="grid gap-2 text-sm font-bold text-plum">
+                      Sub Category
+                      <select className="input-field" name="subCategory" value={offlineForm.subCategory} onChange={handleOfflineChange}>
+                        {(subCategoriesMap[offlineForm.outfitCategory] || []).map((sc) => <option key={sc} value={sc}>{sc}</option>)}
                       </select>
                     </label>
                     <label className="grid gap-2 text-sm font-bold text-plum">
