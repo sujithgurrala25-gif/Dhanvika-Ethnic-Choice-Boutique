@@ -18,6 +18,7 @@ import PreviousOrders from "./pages/PreviousOrders.jsx";
 import Feedback from "./pages/Feedback.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminCustomers from "./pages/AdminCustomers.jsx";
+import AddOfflineOrder from "./pages/AddOfflineOrder.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
 import Profile from "./pages/Profile.jsx";
 import NotFound from "./pages/NotFound.jsx";
@@ -44,22 +45,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          <Route
-            path="/user-dashboard"
-            element={
-              <ProtectedRoute allowedRoles={["user"]}>
-                <UserDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/select-outfit"
-            element={
-              <ProtectedRoute allowedRoles={["user"]}>
-                <SelectOutfit />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/user-dashboard" element={<UserDashboard />} />
+          <Route path="/select-outfit" element={<SelectOutfit />} />
           <Route
             path="/upload-fabric"
             element={
@@ -135,6 +122,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin-add-offline-order"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AddOfflineOrder />
               </ProtectedRoute>
             }
           />

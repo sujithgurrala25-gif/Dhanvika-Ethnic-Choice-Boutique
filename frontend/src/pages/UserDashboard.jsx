@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   Eye,
   Heart,
@@ -9,6 +9,7 @@ import {
   Sparkles,
   Phone,
   ChevronLeft,
+  X,
 } from "lucide-react";
 import EmptyState from "../components/EmptyState.jsx";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
@@ -25,6 +26,8 @@ import {
   toggleWishlistApi,
   clearCartApi,
 } from "../services/userService.js";
+import Pagination from "../components/Pagination.jsx";
+
 
 const tabs = [
   { id: "browse", label: "Browse Products", icon: ShoppingBag },
@@ -42,6 +45,7 @@ function normalizeProduct(product) {
 export default function UserDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [products, setProducts] = useState([]);
   const [productDesigns, setProductDesigns] = useState([]);
@@ -53,43 +57,49 @@ export default function UserDashboard() {
   const setActiveTab = (tabId) => setSearchParams({ tab: tabId });
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [cartPhone, setCartPhone] = useState(user?.phone || "");
-  const [cartPhoneError, setCartPhoneError] = useState("");
-  const [wishlistPhone, setWishlistPhone] = useState(user?.phone || "");
-  const [wishlistPhoneError, setWishlistPhoneError] = useState("");
+  const [cartDeliveryDate, setCartDeliveryDate] = useState("");
+  const [cartDeliveryDateError, setCartDeliveryDateError] = useState("");
+  const [wishlistDeliveryDate, setWishlistDeliveryDate] = useState("");
+  const [wishlistDeliveryDateError, setWishlistDeliveryDateError] = useState("");
+  const CART_PAGE_SIZE = 4;
+  const BROWSE_PAGE_SIZE = 8;
+  const [cartPage, setCartPage] = useState(1);
+  const [wishlistPage, setWishlistPage] = useState(1);
+  const [browsePage, setBrowsePage] = useState(1);
+  const [designsPage, setDesignsPage] = useState(1);
+  const [previewImage, setPreviewImage] = useState(null);
 
   useEffect(() => {
     async function loadAll() {
       try {
-        const [prodData, designData, cartData, wishData, ordData] =
-          await Promise.all([
+        if (user) {
+          const [prodData, designData, cartData, wishData, ordData] =
+            await Promise.all([
+              fetchProducts(),
+              fetchProductDesigns(),
+              fetchCart(),
+              fetchWishlist(),
+              fetchOrders(),
+            ]);
+          const normalizedProducts = (prodData.products || []).map(normalizeProduct);
+          const productsById = new Map(normalizedProducts.map((p) => [p.id, p]));
+          setProducts(normalizedProducts);
+          setProductDesigns(designData.designs || []);
+          setCart((cartData.cart || []).map((p) => normalizeProduct(productsById.get(p.id) || p)));
+          setWishlist((wishData.wishlist || []).map((p) => normalizeProduct(productsById.get(p.id) || p)));
+          setOrders(ordData.orders || []);
+          setSelectedProduct(normalizedProducts[0] || null);
+        } else {
+          // Guest — load products + designs, no auth calls
+          const [prodData, designData] = await Promise.all([
             fetchProducts(),
             fetchProductDesigns(),
-            fetchCart(),
-            fetchWishlist(),
-            fetchOrders(),
           ]);
-        const normalizedProducts = (prodData.products || []).map(
-          normalizeProduct,
-        );
-        const productsById = new Map(
-          normalizedProducts.map((product) => [product.id, product]),
-        );
-
-        setProducts(normalizedProducts);
-        setProductDesigns(designData.designs || []);
-        setCart(
-          (cartData.cart || []).map((product) =>
-            normalizeProduct(productsById.get(product.id) || product),
-          ),
-        );
-        setWishlist(
-          (wishData.wishlist || []).map((product) =>
-            normalizeProduct(productsById.get(product.id) || product),
-          ),
-        );
-        setOrders(ordData.orders || []);
-        setSelectedProduct(normalizedProducts[0] || null);
+          const normalizedProducts = (prodData.products || []).map(normalizeProduct);
+          setProducts(normalizedProducts);
+          setProductDesigns(designData.designs || []);
+          setSelectedProduct(normalizedProducts[0] || null);
+        }
       } catch (err) {
         console.error("Dashboard load error:", err);
       } finally {
@@ -97,16 +107,22 @@ export default function UserDashboard() {
       }
     }
     loadAll();
-  }, []);
+  }, [user]);
 
 
+
+  function requireLogin() {
+    navigate("/login", { state: { from: location.pathname + location.search } });
+  }
 
   function handleViewDetails(product) {
     setSelectedProduct(product);
+    setDesignsPage(1);
     setActiveTab("details");
   }
 
   async function handleAddToCart(product) {
+    if (!user) { requireLogin(); return; }
     try {
       const data = await addToCartApi(product.id);
       setCart((data.cart || []).map(normalizeProduct));
@@ -125,6 +141,7 @@ export default function UserDashboard() {
   }
 
   async function handleWishlist(product) {
+    if (!user) { requireLogin(); return; }
     try {
       const data = await toggleWishlistApi(product.id);
       setWishlist((data.wishlist || []).map(normalizeProduct));
@@ -134,17 +151,23 @@ export default function UserDashboard() {
   }
 
   async function handlePlaceDirectOrder(design) {
+    if (!user) { requireLogin(); return; }
     const defaultPhone = user?.phone || "";
-    const input = window.prompt("Please enter your 10-digit WhatsApp mobile number to place this order:", defaultPhone);
-    if (input === null) return; // cancelled
-
-    const digits = input.replace(/\D/g, "");
+    const digits = defaultPhone.replace(/\D/g, "");
     if (digits.length < 10) {
-      alert("Please enter a valid 10-digit mobile number.");
+      alert("Please update your mobile number in your Profile first.");
       return;
     }
 
     const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
+
+    const todayStr = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const dateInput = window.prompt("Please enter your preferred delivery date (YYYY-MM-DD):", todayStr);
+    if (dateInput === null) return;
+    if (!dateInput.trim()) {
+      alert("Preferred delivery date is required.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -157,6 +180,7 @@ export default function UserDashboard() {
         customer_name: user.name,
         customer_email: user.email,
         customer_phone: formattedPhone,
+        deliveryDate: dateInput.trim(),
       });
 
       const ordData = await fetchOrders();
@@ -183,12 +207,19 @@ export default function UserDashboard() {
   const wishlistTotal = wishlist.reduce((sum, item) => sum + (item.price || 0), 0);
 
   async function handlePlaceCartOrder() {
-    const digits = cartPhone.replace(/\D/g, "");
+    if (!user) { requireLogin(); return; }
+    const defaultPhone = user?.phone || "";
+    const digits = defaultPhone.replace(/\D/g, "");
     if (digits.length < 10) {
-      setCartPhoneError("Please enter a valid 10-digit mobile number.");
+      alert("Please update your mobile number in your Profile first.");
       return;
     }
-    setCartPhoneError("");
+
+    if (!cartDeliveryDate) {
+      setCartDeliveryDateError("Please select your preferred delivery date.");
+      return;
+    }
+    setCartDeliveryDateError("");
 
     try {
       setLoading(true);
@@ -204,17 +235,73 @@ export default function UserDashboard() {
             customer_name: user.name,
             customer_email: user.email,
             customer_phone: formattedPhone,
+            deliveryDate: cartDeliveryDate,
           })
         )
       );
       await clearCartApi();
       setCart([]);
+      setCartDeliveryDate("");
+      const ordData = await fetchOrders();
+      setOrders(ordData.orders || []);
+      setActiveTab("orders");
+      alert("Your orders have been placed successfully!");
+    } catch (err) {
+      console.error("Place order error:", err);
+      alert("Failed to place order. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePlaceIndividualCartOrder(item) {
+    if (!user) { requireLogin(); return; }
+
+    const defaultPhone = user?.phone || "";
+    const digits = defaultPhone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      alert("Please update your mobile number in your Profile first.");
+      return;
+    }
+    const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
+
+    let deliveryDate = cartDeliveryDate;
+    if (!deliveryDate) {
+      const today = new Date();
+      today.setDate(today.getDate() + 7);
+      const todayStr = today.toISOString().split("T")[0];
+      const dateInput = window.prompt("Please enter your preferred delivery date (YYYY-MM-DD) to place this order:", todayStr);
+      if (dateInput === null) return;
+      if (!dateInput.trim()) {
+        alert("Preferred delivery date is required.");
+        return;
+      }
+      deliveryDate = dateInput.trim();
+    }
+
+    try {
+      setLoading(true);
+      await createOrder({
+        outfit_type: item.id,
+        outfit_title: item.name,
+        fabric_image: item.image,
+        total_price: item.price,
+        status: "Order Received",
+        customer_name: user.name,
+        customer_email: user.email,
+        customer_phone: formattedPhone,
+        deliveryDate: deliveryDate,
+      });
+
+      const cartData = await removeFromCartApi(item.id);
+      setCart((cartData.cart || []).map(normalizeProduct));
+
       const ordData = await fetchOrders();
       setOrders(ordData.orders || []);
       setActiveTab("orders");
       alert("Your order has been placed successfully!");
     } catch (err) {
-      console.error("Place order error:", err);
+      console.error("Place individual cart order error:", err);
       alert("Failed to place order. Please try again.");
     } finally {
       setLoading(false);
@@ -238,12 +325,19 @@ export default function UserDashboard() {
   }
 
   async function handlePlaceWishlistOrder() {
-    const digits = wishlistPhone.replace(/\D/g, "");
+    if (!user) { requireLogin(); return; }
+    const defaultPhone = user?.phone || "";
+    const digits = defaultPhone.replace(/\D/g, "");
     if (digits.length < 10) {
-      setWishlistPhoneError("Please enter a valid 10-digit mobile number.");
+      alert("Please update your mobile number in your Profile first.");
       return;
     }
-    setWishlistPhoneError("");
+
+    if (!wishlistDeliveryDate) {
+      setWishlistDeliveryDateError("Please select your preferred delivery date.");
+      return;
+    }
+    setWishlistDeliveryDateError("");
 
     try {
       setLoading(true);
@@ -259,17 +353,19 @@ export default function UserDashboard() {
             customer_name: user.name,
             customer_email: user.email,
             customer_phone: formattedPhone,
+            deliveryDate: wishlistDeliveryDate,
           })
         )
       );
 
       await Promise.all(wishlist.map((item) => toggleWishlistApi(item.id)));
       setWishlist([]);
+      setWishlistDeliveryDate("");
 
       const ordData = await fetchOrders();
       setOrders(ordData.orders || []);
       setActiveTab("orders");
-      alert("Your order has been placed successfully!");
+      alert("Your orders have been placed successfully!");
     } catch (err) {
       console.error("Place order from wishlist error:", err);
       alert("Failed to place order. Please try again.");
@@ -286,6 +382,18 @@ export default function UserDashboard() {
       )
     : [];
 
+  const cartTotalPages = Math.ceil(cart.length / CART_PAGE_SIZE);
+  const pagedCart = cart.slice((cartPage - 1) * CART_PAGE_SIZE, cartPage * CART_PAGE_SIZE);
+
+  const wishlistTotalPages = Math.ceil(wishlist.length / CART_PAGE_SIZE);
+  const pagedWishlist = wishlist.slice((wishlistPage - 1) * CART_PAGE_SIZE, wishlistPage * CART_PAGE_SIZE);
+
+  const browseTotalPages = Math.ceil(products.length / BROWSE_PAGE_SIZE);
+  const pagedProducts = products.slice((browsePage - 1) * BROWSE_PAGE_SIZE, browsePage * BROWSE_PAGE_SIZE);
+
+  const designsTotalPages = Math.ceil(selectedDesigns.length / BROWSE_PAGE_SIZE);
+  const pagedDesigns = selectedDesigns.slice((designsPage - 1) * BROWSE_PAGE_SIZE, designsPage * BROWSE_PAGE_SIZE);
+
   if (loading) {
     return (
       <section className="page-shell flex items-center justify-center min-h-[60vh]">
@@ -300,24 +408,33 @@ export default function UserDashboard() {
         <div className="mb-6 grid gap-4 rounded-lg bg-white p-4 shadow-aura lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
             <p className="mb-1 text-xs font-bold uppercase text-gold">
-              User Dashboard
+              {user ? "User Dashboard" : "Browse Products"}
             </p>
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-plum">Welcome, {user.name}</h1>
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-plum">
+              {user ? `Welcome, ${user.name}` : "Boutique Products"}
+            </h1>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-ink/65">
-              Browse boutique products, save favorites, manage your cart, and
-              track custom stitching orders.
+              {user
+                ? "Browse boutique products, save favorites, manage your cart, and track custom stitching orders."
+                : "Browse our boutique products. Login to add to cart, wishlist, or place an order."}
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Link to="/select-outfit" className="btn-primary py-2 px-4 text-sm">
-              <Sparkles size={16} />
-              Start Designing
-            </Link>
+            {user ? (
+              <Link to="/select-outfit" className="btn-primary py-2 px-4 text-sm">
+                <Sparkles size={16} />
+                Start Designing
+              </Link>
+            ) : (
+              <Link to="/login" className="btn-primary py-2 px-4 text-sm">
+                Login to Order
+              </Link>
+            )}
           </div>
         </div>
       )}
 
-      {(activeTab === "browse" || activeTab === "wishlist") && (
+      {user && (activeTab === "browse" || activeTab === "wishlist") && (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -343,7 +460,7 @@ export default function UserDashboard() {
       {activeTab === "browse" && (
         <DashboardPanel title="Browse Boutique Products">
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {products.map((product) => (
+            {pagedProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -352,9 +469,13 @@ export default function UserDashboard() {
                 onDetails={handleViewDetails}
                 onCart={handleAddToCart}
                 onWishlist={handleWishlist}
+                onImageClick={(url, title, cat) => setPreviewImage({ url, title, category: cat })}
               />
             ))}
           </div>
+          {browseTotalPages > 1 && (
+            <Pagination current={browsePage} total={browseTotalPages} onChange={setBrowsePage} />
+          )}
         </DashboardPanel>
       )}
 
@@ -378,19 +499,25 @@ export default function UserDashboard() {
           </div>
           {selectedProduct ? (
             selectedDesigns.length ? (
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                {selectedDesigns.map((design) => (
-                  <ProductDesignCard
-                    key={design.id}
-                    design={design}
-                    inCart={isInCart(design.id)}
-                    inWishlist={isInWishlist(design.id)}
-                    onCart={handleAddToCart}
-                    onWishlist={handleWishlist}
-                    onOrder={handlePlaceDirectOrder}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                  {pagedDesigns.map((design) => (
+                    <ProductDesignCard
+                      key={design.id}
+                      design={design}
+                      inCart={isInCart(design.id)}
+                      inWishlist={isInWishlist(design.id)}
+                      onCart={handleAddToCart}
+                      onWishlist={handleWishlist}
+                      onOrder={handlePlaceDirectOrder}
+                      onImageClick={(url, title, cat) => setPreviewImage({ url, title, category: cat })}
+                    />
+                  ))}
+                </div>
+                {designsTotalPages > 1 && (
+                  <Pagination current={designsPage} total={designsTotalPages} onChange={setDesignsPage} />
+                )}
+              </>
             ) : (
               <EmptyState
                 title="No designs uploaded"
@@ -411,33 +538,34 @@ export default function UserDashboard() {
           {cart.length ? (
             <>
               <ItemGrid
-                items={cart}
+                items={pagedCart}
                 actionLabel="Remove"
                 onAction={(product) => handleRemoveFromCart(product.id)}
+                orderLabel="Order Now"
+                onOrder={handlePlaceIndividualCartOrder}
+                onImageClick={(url, title, cat) => setPreviewImage({ url, title, category: cat })}
               />
+              {cartTotalPages > 1 && (
+                <Pagination current={cartPage} total={cartTotalPages} onChange={setCartPage} />
+              )}
               <div className="mt-8 flex flex-col items-end gap-3 border-t border-plum/10 pt-6">
                 <div className="w-full max-w-sm mb-2 text-left">
                   <label className="grid gap-2 text-sm font-bold text-plum">
-                    <span className="flex items-center gap-2">
-                      <Phone size={15} />
-                      WhatsApp Mobile Number
-                    </span>
+                    <span>Preferred Delivery Date</span>
                     <input
                       className="input-field"
-                      type="tel"
-                      value={cartPhone}
+                      type="date"
+                      value={cartDeliveryDate}
                       onChange={(e) => {
-                        setCartPhone(e.target.value);
-                        setCartPhoneError("");
+                        setCartDeliveryDate(e.target.value);
+                        setCartDeliveryDateError("");
                       }}
-                      placeholder="e.g. 9876543210"
                       required
-                      maxLength={15}
                     />
                   </label>
-                  {cartPhoneError && (
+                  {cartDeliveryDateError && (
                     <p className="mt-2 rounded-md bg-rose/10 px-4 py-2 text-xs font-semibold text-rose">
-                      {cartPhoneError}
+                      {cartDeliveryDateError}
                     </p>
                   )}
                 </div>
@@ -469,33 +597,32 @@ export default function UserDashboard() {
           {wishlist.length ? (
             <>
               <ItemGrid
-                items={wishlist}
+                items={pagedWishlist}
                 actionLabel="Remove Wishlist"
                 onAction={(product) => handleWishlist(product)}
+                onImageClick={(url, title, cat) => setPreviewImage({ url, title, category: cat })}
               />
+              {wishlistTotalPages > 1 && (
+                <Pagination current={wishlistPage} total={wishlistTotalPages} onChange={setWishlistPage} />
+              )}
               <div className="mt-8 flex flex-col items-end gap-3 border-t border-plum/10 pt-6">
                 <div className="w-full max-w-sm mb-2 text-left">
                   <label className="grid gap-2 text-sm font-bold text-plum">
-                    <span className="flex items-center gap-2">
-                      <Phone size={15} />
-                      WhatsApp Mobile Number
-                    </span>
+                    <span>Preferred Delivery Date</span>
                     <input
                       className="input-field"
-                      type="tel"
-                      value={wishlistPhone}
+                      type="date"
+                      value={wishlistDeliveryDate}
                       onChange={(e) => {
-                        setWishlistPhone(e.target.value);
-                        setWishlistPhoneError("");
+                        setWishlistDeliveryDate(e.target.value);
+                        setWishlistDeliveryDateError("");
                       }}
-                      placeholder="e.g. 9876543210"
                       required
-                      maxLength={15}
                     />
                   </label>
-                  {wishlistPhoneError && (
+                  {wishlistDeliveryDateError && (
                     <p className="mt-2 rounded-md bg-rose/10 px-4 py-2 text-xs font-semibold text-rose">
-                      {wishlistPhoneError}
+                      {wishlistDeliveryDateError}
                     </p>
                   )}
                 </div>
@@ -536,7 +663,7 @@ export default function UserDashboard() {
                   />
                   <div>
                     <p className="text-xs font-bold uppercase text-gold">
-                      {order.id}
+                      {order.orderNum || order.id}
                     </p>
                     <h3 className="font-display text-2xl font-bold text-plum">
                       {order.outfit?.title || order.outfit_type}
@@ -544,6 +671,11 @@ export default function UserDashboard() {
                     <p className="mt-1 text-sm text-ink/60">
                       {new Date(order.createdAt).toLocaleDateString()}
                     </p>
+                    {order.deliveryDate && (
+                      <p className="mt-1 text-xs text-rose font-bold">
+                        Delivery Date: {new Date(order.deliveryDate).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                   <div className="text-left md:text-right flex flex-col items-start md:items-end gap-2">
                     <p className="rounded-md bg-lavender px-3 py-2 text-sm font-bold text-plum">
@@ -586,6 +718,42 @@ export default function UserDashboard() {
 
 
 
+      {/* Premium Lightbox Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-md transition-all duration-300 cursor-zoom-out animate-in fade-in"
+          onClick={() => setPreviewImage(null)}
+        >
+          {/* Floating Close Button */}
+          <button
+            type="button"
+            className="absolute top-4 right-4 z-50 rounded-full bg-white/10 p-2.5 text-white hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-200"
+            onClick={() => setPreviewImage(null)}
+          >
+            <X size={24} />
+          </button>
+
+          {/* Image Container */}
+          <div
+            className="relative flex flex-col items-center justify-center gap-4 transition-transform duration-300 animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImage.url}
+              alt={previewImage.title || "Preview"}
+              className="max-w-[90vw] max-h-[75vh] object-contain rounded-lg shadow-2xl border border-white/10"
+            />
+            {previewImage.title && (
+              <div className="text-center bg-black/40 px-6 py-3 rounded-lg backdrop-blur-sm border border-white/5 max-w-[80vw]">
+                <p className="font-display text-xl font-bold text-white leading-tight">{previewImage.title}</p>
+                {previewImage.category && (
+                  <p className="text-xs uppercase tracking-wider text-gold font-bold mt-1.5">{previewImage.category}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -601,13 +769,15 @@ function DashboardPanel({ title, children }) {
   );
 }
 
-function ProductCard({ product, onDetails }) {
+function ProductCard({ product, onDetails, onImageClick }) {
+  const imageUrl = product.image || product.image_url;
   return (
     <article className="card group overflow-hidden">
       <img
-        src={product.image || product.image_url}
+        src={imageUrl}
         alt={product.name}
-        className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
+        onClick={() => onImageClick && onImageClick(imageUrl, product.name, product.category)}
+        className="h-52 w-full object-cover transition duration-500 group-hover:scale-105 cursor-zoom-in"
       />
       <div className="p-5">
         <p className="text-xs font-bold uppercase text-gold">
@@ -634,13 +804,15 @@ function ProductCard({ product, onDetails }) {
   );
 }
 
-function ProductDesignCard({ design, inCart, inWishlist, onCart, onWishlist, onOrder }) {
+function ProductDesignCard({ design, inCart, inWishlist, onCart, onWishlist, onOrder, onImageClick }) {
+  const imageUrl = design.image || design.image_url;
   return (
     <article className="card group overflow-hidden">
       <img
-        src={design.image || design.image_url}
+        src={imageUrl}
         alt={design.name}
-        className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
+        onClick={() => onImageClick && onImageClick(imageUrl, design.name, design.category)}
+        className="h-52 w-full object-cover transition duration-500 group-hover:scale-105 cursor-zoom-in"
       />
       <div className="p-5">
         <p className="text-xs font-bold uppercase text-gold">
@@ -693,7 +865,7 @@ function ProductDesignCard({ design, inCart, inWishlist, onCart, onWishlist, onO
   );
 }
 
-function ItemGrid({ items, actionLabel, onAction }) {
+function ItemGrid({ items, actionLabel, onAction, onOrder, orderLabel, onImageClick }) {
   return (
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
@@ -702,7 +874,8 @@ function ItemGrid({ items, actionLabel, onAction }) {
             <img
               src={item.image || item.image_url}
               alt={item.name}
-              className="h-44 w-full object-cover"
+              onClick={() => onImageClick && onImageClick(item.image || item.image_url, item.name, item.category)}
+              className="h-44 w-full object-cover cursor-zoom-in hover:scale-105 transition-all duration-300"
             />
             <div className="p-5 pb-0">
               <p className="text-xs font-bold uppercase text-gold">
@@ -716,7 +889,17 @@ function ItemGrid({ items, actionLabel, onAction }) {
               </p>
             </div>
           </div>
-          <div className="p-5 pt-4">
+          <div className="p-5 pt-4 flex flex-col gap-2">
+            {onOrder && (
+              <button
+                type="button"
+                onClick={() => onOrder(item)}
+                className="btn-primary w-full flex items-center justify-center gap-1.5"
+              >
+                <ShoppingBag size={16} />
+                {orderLabel || "Order Now"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onAction(item)}
@@ -739,3 +922,4 @@ function Info({ label, value }) {
     </div>
   );
 }
+

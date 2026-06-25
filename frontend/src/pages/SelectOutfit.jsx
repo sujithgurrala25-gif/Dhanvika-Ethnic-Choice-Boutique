@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { outfitOptions } from "../utils/data.js";
@@ -32,6 +32,7 @@ function buildFirebaseOutfits(products) {
 export default function SelectOutfit() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [outfits, setOutfits] = useState(outfitOptions);
 
   useEffect(() => {
@@ -45,6 +46,11 @@ export default function SelectOutfit() {
   }, []);
 
   function handleCategorySelect(outfit) {
+    if (!user) {
+      // Guest — redirect to login, then come back here
+      navigate("/login", { state: { from: location.pathname } });
+      return;
+    }
     saveDraft(user.id, { selectedOutfit: outfit });
     navigate("/upload-fabric");
   }

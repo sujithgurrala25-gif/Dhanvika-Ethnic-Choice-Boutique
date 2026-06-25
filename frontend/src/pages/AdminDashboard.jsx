@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Edit3,
   Eye,
@@ -16,6 +16,7 @@ import {
   Save,
   ShoppingBag,
   Trash2,
+  Upload,
   Users,
 } from "lucide-react";
 import { boutiqueImages } from "../assets/images.js";
@@ -63,6 +64,8 @@ import {
 import { buildWhatsAppOrderLink, buildWhatsAppReadyMessage, normalizeWhatsAppPhone } from "../utils/whatsapp.js";
 import { generateInvoicePDF } from "../utils/pdfGenerator.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
+import Pagination from "../components/Pagination.jsx";
+import { compressImage } from "../utils/image.js";
 
 const measurementLabels = {
   bust: "Bust",
@@ -130,19 +133,6 @@ const subCategoryPriceMap = {
   "Party Wear Lehenga": 8000,
 };
 
-const emptyOfflineForm = {
-  customerName: "",
-  customerEmail: "",
-  customerPhone: "",
-  outfitTitle: "",
-  outfitCategory: "Blouse",
-  subCategory: "Bridal Blouse",
-  price: 4500,
-  fabricImage: "",
-  neckStyle: "Boat Neck",
-  sleeveStyle: "Short Sleeve",
-  fittingStyle: "Regular Fit",
-};
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -153,6 +143,8 @@ export default function AdminDashboard() {
   const [trendingDesigns, setTrendingDesigns] = useState([]);
   const [orders, setOrders]       = useState([]);
   const [expandedOrders, setExpandedOrders] = useState({});
+  const [orderSortBy, setOrderSortBy] = useState("orderDate");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("All");
 
   const toggleMeasurements = (orderId) => {
     setExpandedOrders((prev) => ({
@@ -165,37 +157,76 @@ export default function AdminDashboard() {
   const [loading, setLoading]     = useState(true);
   const [activeTab, setActiveTab] = useState("products");
 
-  const customerStats = useMemo(() => {
-    return customers.map((customer) => {
-      const customerOrders = orders.filter(
-        (o) =>
-          (o.customer_email || o.user_email)?.toLowerCase() === customer.email?.toLowerCase()
-      );
+  const ADMIN_PAGE_SIZE = 8;
+  const [productsPage, setProductsPage] = useState(1);
+  const [designsPage, setDesignsPage] = useState(1);
+  const [trendingPage, setTrendingPage] = useState(1);
+  const [activeOrdersPage, setActiveOrdersPage] = useState(1);
+  const [deliveredOrdersPage, setDeliveredOrdersPage] = useState(1);
+  const [feedbackPage, setFeedbackPage] = useState(1);
 
-      const latestOrderWithPhone = [...customerOrders].sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      ).find((o) => o.customer_phone || o.customerPhone);
 
-      const phone = customer.phone || (latestOrderWithPhone
-        ? (latestOrderWithPhone.customer_phone || latestOrderWithPhone.customerPhone)
-        : "");
 
-      const totalSpent = customerOrders.reduce(
-        (sum, o) => sum + Number(o.price || o.total_price || 0),
-        0
-      );
+  const activeOrders = useMemo(() => {
+    let list = orders;
+    if (orderStatusFilter === "All") {
+      list = list.filter((o) => o.status !== "Delivered");
+    } else {
+      list = list.filter((o) => o.status === orderStatusFilter);
+    }
+    if (orderSortBy === "orderDate") {
+      list.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateB - dateA;
+      });
+    } else if (orderSortBy === "deliveryDate") {
+      list.sort((a, b) => {
+        const dateA = a.deliveryDate ? new Date(a.deliveryDate) : new Date(8640000000000000);
+        const dateB = b.deliveryDate ? new Date(b.deliveryDate) : new Date(8640000000000000);
+        return dateA - dateB;
+      });
+    }
+    return list;
+  }, [orders, orderSortBy, orderStatusFilter]);
 
-      return {
-        ...customer,
-        ordersCount: customerOrders.length,
-        totalSpent,
-        phone,
-      };
-    });
-  }, [customers, orders]);
+  const deliveredOrders = useMemo(() => {
+    let list = orders.filter((o) => o.status === "Delivered");
+    if (orderSortBy === "orderDate") {
+      list.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateB - dateA;
+      });
+    } else if (orderSortBy === "deliveryDate") {
+      list.sort((a, b) => {
+        const dateA = a.deliveryDate ? new Date(a.deliveryDate) : new Date(8640000000000000);
+        const dateB = b.deliveryDate ? new Date(b.deliveryDate) : new Date(8640000000000000);
+        return dateA - dateB;
+      });
+    }
+    return list;
+  }, [orders, orderSortBy]);
 
-  const activeOrders    = useMemo(() => orders.filter((o) => o.status !== "Delivered"), [orders]);
-  const deliveredOrders = useMemo(() => orders.filter((o) => o.status === "Delivered"), [orders]);
+  const productsTotalPages = Math.ceil(products.length / ADMIN_PAGE_SIZE);
+  const pagedProducts = products.slice((productsPage - 1) * ADMIN_PAGE_SIZE, productsPage * ADMIN_PAGE_SIZE);
+
+  const designsTotalPages = Math.ceil(productDesigns.length / ADMIN_PAGE_SIZE);
+  const pagedDesigns = productDesigns.slice((designsPage - 1) * ADMIN_PAGE_SIZE, designsPage * ADMIN_PAGE_SIZE);
+
+  const trendingTotalPages = Math.ceil(trendingDesigns.length / ADMIN_PAGE_SIZE);
+  const pagedTrending = trendingDesigns.slice((trendingPage - 1) * ADMIN_PAGE_SIZE, trendingPage * ADMIN_PAGE_SIZE);
+
+  const activeOrdersTotalPages = Math.ceil(activeOrders.length / ADMIN_PAGE_SIZE);
+  const pagedActiveOrders = activeOrders.slice((activeOrdersPage - 1) * ADMIN_PAGE_SIZE, activeOrdersPage * ADMIN_PAGE_SIZE);
+
+  const deliveredOrdersTotalPages = Math.ceil(deliveredOrders.length / ADMIN_PAGE_SIZE);
+  const pagedDeliveredOrders = deliveredOrders.slice((deliveredOrdersPage - 1) * ADMIN_PAGE_SIZE, deliveredOrdersPage * ADMIN_PAGE_SIZE);
+
+
+
+  const feedbackTotalPages = Math.ceil(feedback.length / ADMIN_PAGE_SIZE);
+  const pagedFeedback = feedback.slice((feedbackPage - 1) * ADMIN_PAGE_SIZE, feedbackPage * ADMIN_PAGE_SIZE);
 
   const [form, setForm]             = useState(emptyProductForm);
   const [editingId, setEditingId]   = useState("");
@@ -203,14 +234,91 @@ export default function AdminDashboard() {
   const [editingDesignId, setEditingDesignId] = useState("");
   const [trendingForm, setTrendingForm] = useState(emptyTrendingForm);
   const [editingTrendingId, setEditingTrendingId] = useState("");
-  const [offlineForm, setOfflineForm] = useState(emptyOfflineForm);
-  const [offlineMeasurements, setOfflineMeasurements] = useState({});
-  const [offlineUnit, setOfflineUnit] = useState("Inches");
-  const [showOfflineMeasurements, setShowOfflineMeasurements] = useState(false);
   const [whatsAppStatus, setWhatsAppStatus] = useState(null);
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
+  const [uploadingDesignImage, setUploadingDesignImage] = useState(false);
+  const [uploadingTrendingImage, setUploadingTrendingImage] = useState(false);
 
-  const offlineOutfitKey = offlineForm.outfitCategory.toLowerCase().replace(" ", "-");
-  const offlineFields = measurementFieldsByOutfit[offlineOutfitKey] || [];
+  const handleProductImageUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file.");
+      return;
+    }
+    setUploadingProductImage(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const compressed = await compressImage(reader.result);
+        setForm((prev) => ({ ...prev, image: compressed }));
+      } catch (err) {
+        console.error("Compression error:", err);
+        setForm((prev) => ({ ...prev, image: reader.result }));
+      } finally {
+        setUploadingProductImage(false);
+      }
+    };
+    reader.onerror = () => {
+      alert("Failed to read image file.");
+      setUploadingProductImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDesignImageUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file.");
+      return;
+    }
+    setUploadingDesignImage(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const compressed = await compressImage(reader.result);
+        setDesignForm((prev) => ({ ...prev, image: compressed }));
+      } catch (err) {
+        console.error("Compression error:", err);
+        setDesignForm((prev) => ({ ...prev, image: reader.result }));
+      } finally {
+        setUploadingDesignImage(false);
+      }
+    };
+    reader.onerror = () => {
+      alert("Failed to read image file.");
+      setUploadingDesignImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleTrendingImageUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file.");
+      return;
+    }
+    setUploadingTrendingImage(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const compressed = await compressImage(reader.result);
+        setTrendingForm((prev) => ({ ...prev, image: compressed }));
+      } catch (err) {
+        console.error("Compression error:", err);
+        setTrendingForm((prev) => ({ ...prev, image: reader.result }));
+      } finally {
+        setUploadingTrendingImage(false);
+      }
+    };
+    reader.onerror = () => {
+      alert("Failed to read image file.");
+      setUploadingTrendingImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const loadAll = useCallback(async () => {
     try {
@@ -290,25 +398,6 @@ export default function AdminDashboard() {
     setEditingTrendingId("");
   }
 
-  function handleOfflineChange(event) {
-    const { name, value } = event.target;
-    if (name === "outfitCategory") {
-      const subs = subCategoriesMap[value] || [];
-      const firstSub = subs[0] || "";
-      setOfflineForm({ ...offlineForm, outfitCategory: value, subCategory: firstSub, price: subCategoryPriceMap[firstSub] || "" });
-    } else if (name === "subCategory") {
-      setOfflineForm({ ...offlineForm, subCategory: value, price: subCategoryPriceMap[value] || "" });
-    } else {
-      setOfflineForm({ ...offlineForm, [name]: value });
-    }
-  }
-
-  function resetOfflineForm() {
-    setOfflineForm(emptyOfflineForm);
-    setOfflineMeasurements({});
-    setOfflineUnit("Inches");
-    setShowOfflineMeasurements(false);
-  }
 
   function getCustomerPhone(order) {
     if (!order) return "";
@@ -330,78 +419,6 @@ export default function AdminDashboard() {
     return "";
   }
 
-  async function handleOfflineSubmit(event) {
-    event.preventDefault();
-    setWhatsAppStatus(null);
-
-    const digits = offlineForm.customerPhone.replace(/\D/g, "");
-    if (digits.length < 10) {
-      setWhatsAppStatus({
-        type: "error",
-        message: "Please enter a valid 10-digit customer mobile number.",
-      });
-      return;
-    }
-
-    try {
-      const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
-      const payload = {
-        outfit_type: offlineForm.outfitCategory,
-        outfit_title: offlineForm.outfitTitle.trim() || `${offlineForm.subCategory || offlineForm.outfitCategory} - Custom`,
-        outfit_category: offlineForm.outfitCategory,
-        sub_category: offlineForm.subCategory,
-        total_price: Number(offlineForm.price) || 0,
-        neck_style: offlineForm.neckStyle,
-        sleeve_style: offlineForm.sleeveStyle,
-        fitting: offlineForm.fittingStyle,
-        fabric_image: offlineForm.fabricImage.trim() || boutiqueImages.intro,
-        customer_name: offlineForm.customerName.trim(),
-        customer_email: offlineForm.customerEmail.trim(),
-        customer_phone: formattedPhone,
-        ...(showOfflineMeasurements ? {
-          measurements: offlineMeasurements,
-          unit: offlineUnit,
-        } : {}),
-      };
-
-      const data = await createOrder(payload);
-      const newOrder = data.order;
-
-      // Reconstruct the shape WhatsApp util expects
-      const orderForWA = {
-        ...newOrder,
-        outfit: { title: newOrder.outfit?.title || payload.outfit_title },
-        fabricImage: payload.fabric_image,
-        customerName: payload.customer_name,
-        customerPhone: payload.customer_phone,
-        customization: newOrder.customization,
-        price: payload.total_price,
-        measurements: newOrder.measurements,
-        unit: newOrder.unit,
-      };
-
-      setOrders((prev) => [newOrder, ...prev]);
-      resetOfflineForm();
-
-      try {
-        generateInvoicePDF(orderForWA);
-        const waLink = buildWhatsAppOrderLink(orderForWA);
-        window.open(waLink, "_blank", "noopener,noreferrer");
-        setWhatsAppStatus({
-          type: "success",
-          message: "Order saved. Click below to open WhatsApp if it did not open automatically.",
-          link: waLink,
-        });
-      } catch (waErr) {
-        setWhatsAppStatus({
-          type: "success",
-          message: `Order saved. (WhatsApp Error: ${waErr.message})`,
-        });
-      }
-    } catch (err) {
-      setWhatsAppStatus({ type: "error", message: err.message || "Failed to save order." });
-    }
-  }
 
   function handleSendWhatsApp(order) {
     try {
@@ -623,15 +640,16 @@ export default function AdminDashboard() {
   }
 
   async function handleDeleteOrder(order) {
+    const displayId = order.orderNum || order.id;
     const confirmed = window.confirm(
-      `Delete order ${order.id} for ${order.customer_name || order.customerName}? This cannot be undone.`
+      `Delete order ${displayId} for ${order.customer_name || order.customerName}? This cannot be undone.`
     );
     if (!confirmed) return;
 
     try {
       await deleteOrder(order.id);
       setOrders((prev) => prev.filter((o) => o.id !== order.id));
-      setWhatsAppStatus({ type: "success", message: `Order ${order.id} deleted.` });
+      setWhatsAppStatus({ type: "success", message: `Order ${displayId} deleted.` });
     } catch (err) {
       setWhatsAppStatus({ type: "error", message: err.message || "Failed to delete order." });
     }
@@ -678,13 +696,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-6">
+      <div className="mb-6 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard icon={PackageCheck} label="Products"  value={products.length}  isActive={activeTab === "products"}  onClick={() => setActiveTab("products")} />
         <StatCard icon={ShoppingBag} label="Designs" value={productDesigns.length} isActive={activeTab === "designs"}  onClick={() => setActiveTab("designs")} />
         <StatCard icon={ImageIcon} label="Trending" value={trendingDesigns.length} isActive={activeTab === "trending"} onClick={() => setActiveTab("trending")} />
         <StatCard icon={ShoppingBag} label="Orders"    value={orders.length}    isActive={activeTab === "orders"}   onClick={() => setActiveTab("orders")} />
-        <StatCard icon={Users}       label="Customers" value={customers.length} isActive={activeTab === "customers"} onClick={() => setActiveTab("customers")} />
         <StatCard icon={MessageSquareText} label="Feedback" value={feedback.length} isActive={activeTab === "feedback"} onClick={() => setActiveTab("feedback")} />
+        <StatCard icon={Plus}        label="Offline Order" value="+ Add" onClick={() => navigate("/admin-add-offline-order")} />
       </div>
 
       {/* ── Products Tab ── */}
@@ -721,10 +739,38 @@ export default function AdminDashboard() {
               </div>
 
 
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Image URL
-                <input className="input-field" name="image" value={form.image} onChange={handleFormChange} placeholder="https://..." />
-              </label>
+              <div className="grid gap-2 text-sm font-bold text-plum">
+                <span>Image URL (or upload local file)</span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <input className="input-field flex-grow" name="image" value={form.image} onChange={handleFormChange} placeholder="https://..." />
+                  <label className="btn-secondary py-3 px-4 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-[140px] text-xs">
+                    {uploadingProductImage ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-plum border-t-transparent" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={14} />
+                        <span>Upload File</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProductImageUpload}
+                      disabled={uploadingProductImage}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {form.image && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <img src={form.image} alt="Product Preview" className="h-14 w-14 rounded object-cover border border-plum/10" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <button type="button" onClick={() => setForm((prev) => ({ ...prev, image: "" }))} className="text-xs font-semibold text-rose hover:underline">Remove</button>
+                  </div>
+                )}
+              </div>
 
               <label className="grid gap-2 text-sm font-bold text-plum">
                 Description
@@ -748,33 +794,40 @@ export default function AdminDashboard() {
               <h2 className="font-display text-2xl font-bold text-plum">View All Products</h2>
             </div>
             {products.length ? (
-              <div className="divide-y divide-plum/10">
-                {products.map((product) => (
-                  <article key={product.id} className="grid gap-4 p-5 md:grid-cols-[130px_1fr]">
-                    <img src={product.image_url || product.image || boutiqueImages.intro} alt={product.name} className="h-32 w-full rounded-lg object-cover" />
-                    <div>
-                      <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                        <div>
-                          <p className="text-xs font-bold uppercase text-gold">{product.category}</p>
-                          <h3 className="font-display text-2xl font-bold text-plum">{product.name}</h3>
-                          <p className="mt-1 text-sm leading-6 text-ink/65">{product.description}</p>
+              <>
+                <div className="divide-y divide-plum/10">
+                  {pagedProducts.map((product) => (
+                    <article key={product.id} className="grid gap-4 p-5 md:grid-cols-[130px_1fr]">
+                      <img src={product.image_url || product.image || boutiqueImages.intro} alt={product.name} className="h-32 w-full rounded-lg object-cover" />
+                      <div>
+                        <div className="flex flex-col justify-between gap-3 sm:flex-row">
+                          <div>
+                            <p className="text-xs font-bold uppercase text-gold">{product.category}</p>
+                            <h3 className="font-display text-2xl font-bold text-plum">{product.name}</h3>
+                            <p className="mt-1 text-sm leading-6 text-ink/65">{product.description}</p>
+                          </div>
+                          <div className="shrink-0 text-left sm:text-right">
+                            <p className="text-xs font-bold uppercase text-ink/50">Stock: {product.stock}</p>
+                          </div>
                         </div>
-                        <div className="shrink-0 text-left sm:text-right">
-                          <p className="text-xs font-bold uppercase text-ink/50">Stock: {product.stock}</p>
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <button type="button" onClick={() => handleEditProduct(product)} className="btn-secondary flex-1">
+                            <Edit3 size={17} /> Edit Product
+                          </button>
+                          <button type="button" onClick={() => handleDeleteProduct(product.id)} className="btn-secondary flex-1">
+                            <Trash2 size={17} /> Delete Product
+                          </button>
                         </div>
                       </div>
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <button type="button" onClick={() => handleEditProduct(product)} className="btn-secondary flex-1">
-                          <Edit3 size={17} /> Edit Product
-                        </button>
-                        <button type="button" onClick={() => handleDeleteProduct(product.id)} className="btn-secondary flex-1">
-                          <Trash2 size={17} /> Delete Product
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    </article>
+                  ))}
+                </div>
+                {productsTotalPages > 1 && (
+                  <div className="p-5 border-t border-plum/10 bg-white">
+                    <Pagination current={productsPage} total={productsTotalPages} onChange={setProductsPage} />
+                  </div>
+                )}
+              </>
             ) : (
               <div className="p-8 text-center text-sm text-ink/60">No products available. Add your first product.</div>
             )}
@@ -830,16 +883,44 @@ export default function AdminDashboard() {
                 />
               </label>
 
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Image URL
-                <input
-                  className="input-field"
-                  name="image"
-                  value={designForm.image}
-                  onChange={handleDesignChange}
-                  placeholder="https://..."
-                />
-              </label>
+              <div className="grid gap-2 text-sm font-bold text-plum">
+                <span>Image URL (or upload local file)</span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <input
+                    className="input-field flex-grow"
+                    name="image"
+                    value={designForm.image}
+                    onChange={handleDesignChange}
+                    placeholder="https://..."
+                  />
+                  <label className="btn-secondary py-3 px-4 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-[140px] text-xs">
+                    {uploadingDesignImage ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-plum border-t-transparent" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={14} />
+                        <span>Upload File</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleDesignImageUpload}
+                      disabled={uploadingDesignImage}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {designForm.image && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <img src={designForm.image} alt="Design Preview" className="h-14 w-14 rounded object-cover border border-plum/10" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <button type="button" onClick={() => setDesignForm((prev) => ({ ...prev, image: "" }))} className="text-xs font-semibold text-rose hover:underline">Remove</button>
+                  </div>
+                )}
+              </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-2 text-sm font-bold text-plum">
@@ -902,59 +983,66 @@ export default function AdminDashboard() {
               </h2>
             </div>
             {productDesigns.length ? (
-              <div className="divide-y divide-plum/10">
-                {productDesigns.map((design) => (
-                  <article
-                    key={design.id}
-                    className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
-                  >
-                    <img
-                      src={design.image_url || design.image || boutiqueImages.intro}
-                      alt={design.name}
-                      className="h-32 w-full rounded-lg object-cover"
-                    />
-                    <div>
-                      <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                        <div>
-                          <p className="text-xs font-bold uppercase text-gold">
-                            {design.category}
-                          </p>
-                          <h3 className="font-display text-2xl font-bold text-plum">
-                            {design.name}
-                          </h3>
-                          <p className="mt-1 text-sm leading-6 text-ink/65">
-                            {design.description}
-                          </p>
+              <>
+                <div className="divide-y divide-plum/10">
+                  {pagedDesigns.map((design) => (
+                    <article
+                      key={design.id}
+                      className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
+                    >
+                      <img
+                        src={design.image_url || design.image || boutiqueImages.intro}
+                        alt={design.name}
+                        className="h-32 w-full rounded-lg object-cover"
+                      />
+                      <div>
+                        <div className="flex flex-col justify-between gap-3 sm:flex-row">
+                          <div>
+                            <p className="text-xs font-bold uppercase text-gold">
+                              {design.category}
+                            </p>
+                            <h3 className="font-display text-2xl font-bold text-plum">
+                              {design.name}
+                            </h3>
+                            <p className="mt-1 text-sm leading-6 text-ink/65">
+                              {design.description}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-left sm:text-right">
+                            <p className="text-lg font-bold text-rose">
+                              {formatPrice(design.price)}
+                            </p>
+                            <p className="text-xs font-bold uppercase text-ink/50">
+                              Stock: {design.stock}
+                            </p>
+                          </div>
                         </div>
-                        <div className="shrink-0 text-left sm:text-right">
-                          <p className="text-lg font-bold text-rose">
-                            {formatPrice(design.price)}
-                          </p>
-                          <p className="text-xs font-bold uppercase text-ink/50">
-                            Stock: {design.stock}
-                          </p>
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => handleEditDesign(design)}
+                            className="btn-secondary flex-1"
+                          >
+                            <Edit3 size={17} /> Edit Design
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDesign(design.id)}
+                            className="btn-secondary flex-1"
+                          >
+                            <Trash2 size={17} /> Delete Design
+                          </button>
                         </div>
                       </div>
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <button
-                          type="button"
-                          onClick={() => handleEditDesign(design)}
-                          className="btn-secondary flex-1"
-                        >
-                          <Edit3 size={17} /> Edit Design
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDesign(design.id)}
-                          className="btn-secondary flex-1"
-                        >
-                          <Trash2 size={17} /> Delete Design
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    </article>
+                  ))}
+                </div>
+                {designsTotalPages > 1 && (
+                  <div className="p-5 border-t border-plum/10 bg-white">
+                    <Pagination current={designsPage} total={designsTotalPages} onChange={setDesignsPage} />
+                  </div>
+                )}
+              </>
             ) : (
               <div className="p-8 text-center text-sm text-ink/60">
                 No category designs available. Add designs under Blouse, Kurti,
@@ -995,16 +1083,44 @@ export default function AdminDashboard() {
                 />
               </label>
 
-              <label className="grid gap-2 text-sm font-bold text-plum">
-                Image URL
-                <input
-                  className="input-field"
-                  name="image"
-                  value={trendingForm.image}
-                  onChange={handleTrendingChange}
-                  placeholder="https://..."
-                />
-              </label>
+              <div className="grid gap-2 text-sm font-bold text-plum">
+                <span>Image URL (or upload local file)</span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <input
+                    className="input-field flex-grow"
+                    name="image"
+                    value={trendingForm.image}
+                    onChange={handleTrendingChange}
+                    placeholder="https://..."
+                  />
+                  <label className="btn-secondary py-3 px-4 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-[140px] text-xs">
+                    {uploadingTrendingImage ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-plum border-t-transparent" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={14} />
+                        <span>Upload File</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleTrendingImageUpload}
+                      disabled={uploadingTrendingImage}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {trendingForm.image && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <img src={trendingForm.image} alt="Trending Preview" className="h-14 w-14 rounded object-cover border border-plum/10" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <button type="button" onClick={() => setTrendingForm((prev) => ({ ...prev, image: "" }))} className="text-xs font-semibold text-rose hover:underline">Remove</button>
+                  </div>
+                )}
+              </div>
 
               <label className="grid gap-2 text-sm font-bold text-plum">
                 Description
@@ -1042,44 +1158,51 @@ export default function AdminDashboard() {
               </h2>
             </div>
             {trendingDesigns.length ? (
-              <div className="divide-y divide-plum/10">
-                {trendingDesigns.map((design) => (
-                  <article
-                    key={design.id}
-                    className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
-                  >
-                    <img
-                      src={design.image_url || design.image || boutiqueImages.intro}
-                      alt={design.title}
-                      className="h-32 w-full rounded-lg object-cover"
-                    />
-                    <div>
-                      <h3 className="font-display text-2xl font-bold text-plum">
-                        {design.title}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-ink/65">
-                        {design.description}
-                      </p>
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <button
-                          type="button"
-                          onClick={() => handleEditTrending(design)}
-                          className="btn-secondary flex-1"
-                        >
-                          <Edit3 size={17} /> Edit Design
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTrending(design.id)}
-                          className="btn-secondary flex-1"
-                        >
-                          <Trash2 size={17} /> Delete Design
-                        </button>
+              <>
+                <div className="divide-y divide-plum/10">
+                  {pagedTrending.map((design) => (
+                    <article
+                      key={design.id}
+                      className="grid gap-4 p-5 md:grid-cols-[130px_1fr]"
+                    >
+                      <img
+                        src={design.image_url || design.image || boutiqueImages.intro}
+                        alt={design.title}
+                        className="h-32 w-full rounded-lg object-cover"
+                      />
+                      <div>
+                        <h3 className="font-display text-2xl font-bold text-plum">
+                          {design.title}
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-ink/65">
+                          {design.description}
+                        </p>
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => handleEditTrending(design)}
+                            className="btn-secondary flex-1"
+                          >
+                            <Edit3 size={17} /> Edit Design
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTrending(design.id)}
+                            className="btn-secondary flex-1"
+                          >
+                            <Trash2 size={17} /> Delete Design
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    </article>
+                  ))}
+                </div>
+                {trendingTotalPages > 1 && (
+                  <div className="p-5 border-t border-plum/10 bg-white">
+                    <Pagination current={trendingPage} total={trendingTotalPages} onChange={setTrendingPage} />
+                  </div>
+                )}
+              </>
             ) : (
               <div className="p-8 text-center text-sm text-ink/60">
                 No trending designs available. Add your first design.
@@ -1092,10 +1215,41 @@ export default function AdminDashboard() {
       {/* ── Orders Tab ── */}
       {activeTab === "orders" && (
         <div className="mt-6 animate-fadeUp">
-          <div id="section-orders" className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr] items-start scroll-mt-6">
+          <div id="section-orders" className="scroll-mt-6 w-full">
             <div className="card overflow-hidden">
-              <div className="border-b border-plum/10 p-5">
+              <div className="border-b border-plum/10 p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                 <h2 className="font-display text-2xl font-bold text-plum">Active Orders</h2>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="active-order-status" className="text-xs font-bold text-plum/70 uppercase whitespace-nowrap">Filter Status:</label>
+                    <select
+                      id="active-order-status"
+                      className="input-field py-1 px-3 text-sm max-w-56"
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value)}
+                    >
+                      <option value="All">All Active</option>
+                      <option value="Order Received">Order Received</option>
+                      <option value="Cutting">Cutting</option>
+                      <option value="Stitching">Stitching</option>
+                      <option value="Ready">Ready</option>
+                      <option value="Delivered">Delivered</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="active-order-sort" className="text-xs font-bold text-plum/70 uppercase whitespace-nowrap">Sort by:</label>
+                    <select
+                      id="active-order-sort"
+                      className="input-field py-1 px-3 text-sm max-w-56"
+                      value={orderSortBy}
+                      onChange={(e) => setOrderSortBy(e.target.value)}
+                    >
+                      <option value="orderDate">Order Date</option>
+                      <option value="deliveryDate">Delivery Date</option>
+                    </select>
+                  </div>
+                </div>
               </div>
               {whatsAppStatus && (
                 <div className={`m-5 rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
@@ -1124,271 +1278,160 @@ export default function AdminDashboard() {
                 </div>
               )}
               {activeOrders.length ? (
-                <div className="divide-y divide-plum/10">
-                  {activeOrders.map((order) => (
-                    <article key={order.id} className="grid gap-4 p-5 lg:grid-cols-[140px_1fr]">
-                      <img src={order.fabric_image || order.fabricImage} alt="Uploaded fabric" className="h-36 w-full rounded-lg object-cover" />
-                      <div>
-                        <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                          <div>
-                            <p className="text-xs font-bold uppercase text-gold">{order.id}</p>
-                            <h3 className="font-display text-2xl font-bold text-plum">{order.outfit?.title || order.outfit_type}</h3>
-                            <p className="text-sm text-ink/58">
-                              {order.customer_name || order.user_name} · {order.customer_email || order.user_email}
-                            </p>
-                          </div>
-                          <label className="grid gap-2 text-sm font-bold text-plum">
-                            Update Order Status
-                            <select
-                              className="input-field max-w-56"
-                              value={order.status}
-                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                            >
-                              {orderStatusOptions.map((s) => <option key={s}>{s}</option>)}
-                            </select>
-                          </label>
-                        </div>
-
-                        {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
-                          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            <Info label="Price"   value={formatPrice(order.price)} />
-                            <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
-                            <Info label="Type"    value="Ready-made Product" />
-                          </div>
-                        ) : (
-                          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            <Info label="Price"   value={formatPrice(order.price)} />
-                            <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
-                            <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
-                            <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
-                            <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
-                          </div>
-                        )}
-
-                        {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && expandedOrders[order.id] && (
-                          <div className="mt-4 rounded-lg bg-cream/35 border border-plum/5 p-4 animate-fadeUp">
-                            <p className="text-xs font-bold uppercase tracking-wider text-gold mb-3">Measurements & Dimensions</p>
-                            <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-                              {Object.entries(order.measurements).map(([key, val]) => {
-                                if (val === undefined || val === null || val === "") return null;
-                                const label = measurementLabels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                                return (
-                                  <div key={key} className="rounded bg-white border border-plum/5 p-2 flex flex-col justify-between shadow-sm">
-                                    <span className="text-[10px] uppercase font-bold text-plum/50 tracking-wider leading-none">{label}</span>
-                                    <span className="text-xs font-bold text-plum mt-1">{val} {order.unit || "Inches"}</span>
-                                  </div>
-                                );
-                              })}
+                <>
+                  <div className="divide-y divide-plum/10">
+                    {pagedActiveOrders.map((order) => (
+                      <article key={order.id} className="grid gap-4 p-5 lg:grid-cols-[140px_1fr]">
+                        <img src={order.fabric_image || order.fabricImage} alt="Uploaded fabric" className="h-36 w-full rounded-lg object-cover" />
+                        <div>
+                          <div className="flex flex-col justify-between gap-3 sm:flex-row">
+                            <div>
+                              <p className="text-xs font-bold uppercase text-gold">{order.orderNum || order.id}</p>
+                              <h3 className="font-display text-2xl font-bold text-plum">{order.outfit?.title || order.outfit_type}</h3>
+                              <p className="text-sm text-ink/58">
+                                {order.customer_name || order.user_name} · {order.customer_email || order.user_email}
+                              </p>
+                              {order.createdAt && (
+                                <p className="mt-1 text-xs text-ink/60 font-medium">
+                                  Order Date: {new Date(order.createdAt).toLocaleDateString()}
+                                </p>
+                              )}
+                              {order.deliveryDate && (
+                                <p className="mt-1 text-xs text-rose font-bold">
+                                  Delivery Date: {new Date(order.deliveryDate).toLocaleDateString()}
+                                </p>
+                              )}
                             </div>
+                            <label className="grid gap-2 text-sm font-bold text-plum">
+                              Update Order Status
+                              <select
+                                className="input-field max-w-56"
+                                value={order.status}
+                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                              >
+                                {orderStatusOptions.map((s) => <option key={s}>{s}</option>)}
+                              </select>
+                            </label>
                           </div>
-                        )}
 
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                          {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && (
+                          {(order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0) ? (
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                              <Info label="Price"   value={formatPrice(order.price)} />
+                              <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
+                              <Info label="Type"    value="Ready-made Product" />
+                              <Info label="Delivery Date" value={order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : "N/A"} />
+                            </div>
+                          ) : (
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                              <Info label="Price"   value={formatPrice(order.price)} />
+                              <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
+                              <Info label="Delivery Date" value={order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : "N/A"} />
+                              <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
+                              <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
+                              <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
+                            </div>
+                          )}
+
+                          {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && expandedOrders[order.id] && (
+                            <div className="mt-4 rounded-lg bg-cream/35 border border-plum/5 p-4 animate-fadeUp">
+                              <p className="text-xs font-bold uppercase tracking-wider text-gold mb-3">Measurements & Dimensions</p>
+                              <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                                {Object.entries(order.measurements).map(([key, val]) => {
+                                  if (val === undefined || val === null || val === "") return null;
+                                  const label = measurementLabels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                                  return (
+                                    <div key={key} className="rounded bg-white border border-plum/5 p-2 flex flex-col justify-between shadow-sm">
+                                      <span className="text-[10px] uppercase font-bold text-plum/50 tracking-wider leading-none">{label}</span>
+                                      <span className="text-xs font-bold text-plum mt-1">{val} {order.unit || "Inches"}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                            {!order.is_product_order && order.measurements && Object.keys(order.measurements).length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleMeasurements(order.id)}
+                                className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                              >
+                                {expandedOrders[order.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                {expandedOrders[order.id] ? "Hide Measurements" : "View Measurements"}
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => toggleMeasurements(order.id)}
+                              onClick={() => handleSendWhatsApp(order)}
                               className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
                             >
-                              {expandedOrders[order.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                              {expandedOrders[order.id] ? "Hide Measurements" : "View Measurements"}
+                              <MessageCircle size={14} /> Send WhatsApp
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleSendWhatsApp(order)}
-                            className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
-                          >
-                            <MessageCircle size={14} /> Send WhatsApp
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteOrder(order)}
-                            className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
-                          >
-                            <Trash2 size={14} /> Delete Order
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOrder(order)}
+                              className="btn-secondary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5"
+                            >
+                              <Trash2 size={14} /> Delete Order
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                      </article>
+                    ))}
+                  </div>
+                  {activeOrdersTotalPages > 1 && (
+                    <div className="p-5 border-t border-plum/10 bg-white">
+                      <Pagination current={activeOrdersPage} total={activeOrdersTotalPages} onChange={setActiveOrdersPage} />
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="p-8 text-center text-sm text-ink/60">No active orders.</div>
               )}
-            </div>
-
-            <div className="grid gap-6">
-              {/* ── Add Offline Customer Order ── */}
-              <form className="card p-5" onSubmit={handleOfflineSubmit}>
-                <h2 className="font-display text-2xl font-bold text-plum">Add Offline Customer Order</h2>
-                <p className="mt-2 text-sm text-ink/60">Enter customer details and product for offline customers.</p>
-
-                <div className="mt-4 grid gap-3">
-                  <label className="grid gap-2 text-sm font-bold text-plum">
-                    Customer Name
-                    <input className="input-field" name="customerName" value={offlineForm.customerName} onChange={handleOfflineChange} required />
-                  </label>
-                  <label className="grid gap-2 text-sm font-bold text-plum">
-                    Email
-                    <input className="input-field" type="email" name="customerEmail" value={offlineForm.customerEmail} onChange={handleOfflineChange} />
-                  </label>
-                  <label className="grid gap-2 text-sm font-bold text-plum">
-                    WhatsApp Mobile Number
-                    <input className="input-field" name="customerPhone" value={offlineForm.customerPhone} onChange={handleOfflineChange} placeholder="9876543210 or 919876543210" required />
-                  </label>
-                  <label className="grid gap-2 text-sm font-bold text-plum">
-                    Outfit Title (optional)
-                    <input className="input-field" name="outfitTitle" value={offlineForm.outfitTitle} onChange={handleOfflineChange} />
-                  </label>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <label className="grid gap-2 text-sm font-bold text-plum">
-                      Category
-                      <select className="input-field" name="outfitCategory" value={offlineForm.outfitCategory} onChange={handleOfflineChange}>
-                        {["Blouse", "Kurti", "Long Frock", "Lehenga"].map((c) => <option key={c}>{c}</option>)}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm font-bold text-plum">
-                      Sub Category
-                      <select className="input-field" name="subCategory" value={offlineForm.subCategory} onChange={handleOfflineChange}>
-                        {(subCategoriesMap[offlineForm.outfitCategory] || []).map((sc) => <option key={sc} value={sc}>{sc}</option>)}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm font-bold text-plum">
-                      Price
-                      <input className="input-field" type="number" min="0" name="price" value={offlineForm.price} onChange={handleOfflineChange} />
-                    </label>
-                  </div>
-                  <label className="grid gap-2 text-sm font-bold text-plum">
-                    Fabric Image URL (optional)
-                    <input className="input-field" name="fabricImage" value={offlineForm.fabricImage} onChange={handleOfflineChange} placeholder="https://..." />
-                  </label>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <label className="grid gap-2 text-sm font-bold text-plum">
-                      Neck
-                      <select className="input-field" name="neckStyle" value={offlineForm.neckStyle} onChange={handleOfflineChange}>
-                        {neckStyles.map((n) => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm font-bold text-plum">
-                      Sleeve
-                      <select className="input-field" name="sleeveStyle" value={offlineForm.sleeveStyle} onChange={handleOfflineChange}>
-                        {sleeveStyles.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm font-bold text-plum">
-                      Fitting
-                      <select className="input-field" name="fittingStyle" value={offlineForm.fittingStyle} onChange={handleOfflineChange}>
-                        {fittingOptions.map((f) => <option key={f} value={f}>{f}</option>)}
-                      </select>
-                    </label>
-                  </div>
-
-                  <div className="mt-2 border-t border-plum/10 pt-4">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-plum">
-                      <input
-                        type="checkbox"
-                        checked={showOfflineMeasurements}
-                        onChange={(e) => setShowOfflineMeasurements(e.target.checked)}
-                        className="rounded border-plum/20 text-plum focus:ring-plum"
-                      />
-                      Add Custom Measurements
-                    </label>
-                  </div>
-
-                  {showOfflineMeasurements && (
-                    <div className="grid gap-3 border border-plum/10 rounded-lg bg-cream/40 p-4 animate-fadeUp">
-                      <div className="flex items-center justify-between border-b border-plum/5 pb-2">
-                        <span className="text-xs font-bold text-plum/70">Measurements ({offlineUnit})</span>
-                        <div className="flex rounded bg-white p-0.5 shadow-sm border border-plum/5">
-                          {["Inches", "CM"].map((item) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => setOfflineUnit(item)}
-                              className={`rounded px-2.5 py-1 text-[11px] font-bold transition ${
-                                offlineUnit === item
-                                  ? "bg-plum text-white"
-                                  : "text-plum hover:bg-lavender"
-                              }`}
-                            >
-                              {item}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {offlineFields.map((field) => (
-                          <label key={field.key} className="grid gap-1 text-xs font-bold text-plum">
-                            {field.name}
-                            <input
-                              className="input-field py-1.5 text-sm"
-                              type="number"
-                              min="0"
-                              step="0.1"
-                              placeholder={offlineUnit}
-                              value={offlineMeasurements[field.key] || ""}
-                              onChange={(e) => setOfflineMeasurements({
-                                ...offlineMeasurements,
-                                [field.key]: e.target.value
-                              })}
-                            />
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex gap-3">
-                    <button type="submit" className="btn-primary flex-1">
-                      <Save size={17} /> Save & Send WhatsApp
-                    </button>
-                    <button type="button" onClick={resetOfflineForm} className="btn-secondary">Cancel</button>
-                  </div>
-
-                  {whatsAppStatus && (
-                    <div className={`rounded-md px-4 py-3 text-sm font-semibold flex flex-col gap-2 ${
-                      whatsAppStatus.type === "success" ? "bg-green-50 text-green-700" : "bg-rose/10 text-rose"
-                    }`}>
-                      <p>{whatsAppStatus.message}</p>
-                      {whatsAppStatus.link && (
-                        <a
-                          href={whatsAppStatus.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-primary py-1.5 px-3 text-xs w-fit bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5"
-                        >
-                          <MessageCircle size={14} /> Open WhatsApp Chat
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </form>
             </div>
           </div>
 
           {/* Previous Orders (Delivered) */}
           {deliveredOrders.length > 0 && (
             <div className="mt-6 card overflow-hidden">
-              <div className="border-b border-plum/10 p-5">
+              <div className="border-b border-plum/10 p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                 <h2 className="font-display text-2xl font-bold text-plum">Previous Orders (Delivered)</h2>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="delivered-order-sort" className="text-xs font-bold text-plum/70 uppercase whitespace-nowrap">Sort by:</label>
+                  <select
+                    id="delivered-order-sort"
+                    className="input-field py-1 px-3 text-sm max-w-56"
+                    value={orderSortBy}
+                    onChange={(e) => setOrderSortBy(e.target.value)}
+                  >
+                    <option value="orderDate">Order Date</option>
+                    <option value="deliveryDate">Delivery Date</option>
+                  </select>
+                </div>
               </div>
               <div className="divide-y divide-plum/10">
-                {deliveredOrders.map((order) => (
+                {pagedDeliveredOrders.map((order) => (
                   <article key={order.id} className="grid gap-4 p-5 lg:grid-cols-[140px_1fr]">
                     <img src={order.fabric_image || order.fabricImage} alt="Uploaded fabric" className="h-36 w-full rounded-lg object-cover" />
                     <div>
                       <div className="flex flex-col justify-between gap-3 sm:flex-row">
                         <div>
-                          <p className="text-xs font-bold uppercase text-gold">{order.id}</p>
+                          <p className="text-xs font-bold uppercase text-gold">{order.orderNum || order.id}</p>
                           <h3 className="font-display text-2xl font-bold text-plum">{order.outfit?.title || order.outfit_type}</h3>
                           <p className="text-sm text-ink/58">
                             {order.customer_name || order.user_name} · {order.customer_email || order.user_email}
                           </p>
+                          {order.createdAt && (
+                            <p className="mt-1 text-xs text-ink/60 font-medium">
+                              Order Date: {new Date(order.createdAt).toLocaleDateString()}
+                            </p>
+                          )}
+                          {order.deliveryDate && (
+                            <p className="mt-1 text-xs text-rose font-bold">
+                              Delivery Date: {new Date(order.deliveryDate).toLocaleDateString()}
+                            </p>
+                          )}
                         </div>
                         <span className="h-fit rounded-md bg-green-100 px-4 py-2 text-sm font-bold text-green-700">
                           ✅ Delivered
@@ -1400,11 +1443,13 @@ export default function AdminDashboard() {
                           <Info label="Price"   value={formatPrice(order.price)} />
                           <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
                           <Info label="Type"    value="Ready-made Product" />
+                          <Info label="Delivery Date" value={order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : "N/A"} />
                         </div>
                       ) : (
                         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                           <Info label="Price"   value={formatPrice(order.price)} />
                           <Info label="Phone"   value={getCustomerPhone(order) || "N/A"} />
+                          <Info label="Delivery Date" value={order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : "N/A"} />
                           <Info label="Neck"    value={order.customization?.neckStyle || "N/A"} />
                           <Info label="Sleeve"  value={order.customization?.sleeveStyle || "N/A"} />
                           <Info label="Fitting" value={order.customization?.fittingStyle || "N/A"} />
@@ -1459,72 +1504,17 @@ export default function AdminDashboard() {
                   </article>
                 ))}
               </div>
+              {deliveredOrdersTotalPages > 1 && (
+                <div className="p-5 border-t border-plum/10 bg-white">
+                  <Pagination current={deliveredOrdersPage} total={deliveredOrdersTotalPages} onChange={setDeliveredOrdersPage} />
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* ── Customers Tab ── */}
-      {activeTab === "customers" && (
-        <div className="card overflow-hidden mt-6 animate-fadeUp">
-          <div className="border-b border-plum/10 p-5 bg-white">
-            <h2 className="font-display text-2xl font-bold text-plum">Registered Customers</h2>
-          </div>
 
-          {customerStats.length ? (
-            <div className="divide-y divide-plum/10">
-              {customerStats.map((customer) => (
-                <article
-                  key={customer.id || customer.email}
-                  className="grid gap-4 p-5 md:grid-cols-[2fr_1fr_1fr] items-center"
-                >
-                  <div>
-                    <h3 className="font-display text-xl font-bold text-plum">{customer.name}</h3>
-                    <div className="mt-2 flex flex-col gap-1 text-sm text-ink/65">
-                      <span className="flex items-center gap-2">
-                        <Mail size={14} className="text-gold" />
-                        <a href={`mailto:${customer.email}`} className="hover:text-plum hover:underline">
-                          {customer.email}
-                        </a>
-                      </span>
-                      {customer.phone && (
-                        <span className="flex items-center gap-2">
-                          <Phone size={14} className="text-gold" />
-                          <span>{customer.phone}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-left md:text-center">
-                    <p className="text-xs font-bold uppercase text-ink/50">Total Orders</p>
-                    <p className="text-lg font-bold text-plum">{customer.ordersCount} orders</p>
-                    <p className="text-xs text-ink/60">Spent: {formatPrice(customer.totalSpent)}</p>
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    {customer.phone ? (
-                      <a
-                        href={`https://wa.me/${normalizeWhatsAppPhone(customer.phone)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-primary inline-flex items-center gap-2 text-xs bg-green-600 hover:bg-green-700 text-white w-full md:w-auto justify-center py-2 px-4 shadow-sm"
-                      >
-                        <MessageCircle size={15} />
-                        WhatsApp Chat
-                      </a>
-                    ) : (
-                      <span className="text-xs text-ink/40 font-semibold italic">No phone contact</span>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center text-sm text-ink/60">No customer accounts registered yet.</div>
-          )}
-        </div>
-      )}
 
       {/* ── Feedback Tab ── */}
       {activeTab === "feedback" && (
@@ -1532,27 +1522,34 @@ export default function AdminDashboard() {
           <h2 className="font-display text-2xl font-bold text-plum">Recent Feedback</h2>
           <div className="mt-4 grid gap-3">
             {feedback.length ? (
-              feedback.map((item) => (
-                <article key={item.id} className="rounded-lg bg-cream p-4 border border-plum/5">
-                  <div className="flex justify-between items-start gap-4">
-                    <div>
-                      <p className="font-bold text-plum">{item.name}</p>
-                      <p className="text-xs font-bold uppercase text-gold">{item.rating}/5 · {item.outfit_type || item.outfitType}</p>
+              <>
+                {pagedFeedback.map((item) => (
+                  <article key={item.id} className="rounded-lg bg-cream p-4 border border-plum/5">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <p className="font-bold text-plum">{item.name}</p>
+                        <p className="text-xs font-bold uppercase text-gold">{item.rating}/5 · {item.outfit_type || item.outfitType}</p>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeedback(item.id)}
+                          className="p-1.5 text-rose/70 hover:text-rose hover:bg-rose/10 rounded transition"
+                          title="Delete Review"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteFeedback(item.id)}
-                        className="p-1.5 text-rose/70 hover:text-rose hover:bg-rose/10 rounded transition"
-                        title="Delete Review"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    <p className="mt-2 text-sm leading-6 text-ink/68">"{item.message}"</p>
+                  </article>
+                ))}
+                {feedbackTotalPages > 1 && (
+                  <div className="p-3 bg-white">
+                    <Pagination current={feedbackPage} total={feedbackTotalPages} onChange={setFeedbackPage} />
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-ink/68">"{item.message}"</p>
-                </article>
-              ))
+                )}
+              </>
             ) : (
               <p className="text-sm text-ink/60">No feedback yet.</p>
             )}

@@ -226,21 +226,63 @@ export default function BlousePreview({
       style={{ overflow: "visible" }}
     >
       <defs>
+        {/* Main fabric pattern - scaled to full viewBox to prevent repeating grid tiles */}
         <pattern
           id={patternId}
           patternUnits="userSpaceOnUse"
-          width="120"
-          height="120"
+          width="400"
+          height="500"
         >
           <image
             href={fabricImage}
             x="0"
             y="0"
-            width="120"
-            height="120"
+            width="400"
+            height="500"
             preserveAspectRatio="xMidYMid slice"
           />
         </pattern>
+
+        {/* Bias-rotated fabric patterns for sleeves - scaled to full viewBox to prevent tiling */}
+        <pattern
+          id={`${patternId}-sleeve-left`}
+          patternUnits="userSpaceOnUse"
+          width="400"
+          height="500"
+          patternTransform="rotate(15)"
+        >
+          <image
+            href={fabricImage}
+            x="0"
+            y="0"
+            width="400"
+            height="500"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </pattern>
+        <pattern
+          id={`${patternId}-sleeve-right`}
+          patternUnits="userSpaceOnUse"
+          width="400"
+          height="500"
+          patternTransform="rotate(-15)"
+        >
+          <image
+            href={fabricImage}
+            x="0"
+            y="0"
+            width="400"
+            height="500"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </pattern>
+
+        {/* Weave texture overlay pattern representing linen/silk cloth weave */}
+        <pattern id="fabricWeave" width="8" height="8" patternUnits="userSpaceOnUse">
+          <path d="M 0 4 L 8 4 M 4 0 L 4 8" stroke="#513252" strokeWidth="0.4" opacity="0.10" />
+          <path d="M 0 0 L 8 8" stroke="#ffffff" strokeWidth="0.3" opacity="0.06" />
+        </pattern>
+
         <filter id="sketchShadow" x="-10%" y="-10%" width="120%" height="120%">
           <feDropShadow
             dx="1"
@@ -250,8 +292,19 @@ export default function BlousePreview({
             floodOpacity="0.12"
           />
         </filter>
+
+        {/* 3D Volumetric cylindrical lighting gradient */}
+        <linearGradient id="bodyShading" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#000000" stopOpacity="0.22" />
+          <stop offset="18%" stopColor="#000000" stopOpacity="0.04" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.24" />
+          <stop offset="82%" stopColor="#000000" stopOpacity="0.04" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.22" />
+        </linearGradient>
+
+        {/* Diagonal lighting gradient for sleeves / side views */}
         <linearGradient id="shadingGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.25" />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
           <stop offset="50%" stopColor="#000000" stopOpacity="0" />
           <stop offset="100%" stopColor="#000000" stopOpacity="0.15" />
         </linearGradient>
@@ -318,7 +371,7 @@ export default function BlousePreview({
               <>
                 <path
                   d={sleeveLeftPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-left)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -329,8 +382,13 @@ export default function BlousePreview({
                   stroke="none"
                 />
                 <path
+                  d={sleeveLeftPath}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
+                />
+                <path
                   d={sleeveRightPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-right)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -338,6 +396,11 @@ export default function BlousePreview({
                 <path
                   d={sleeveRightPath}
                   fill="url(#shadingGrad)"
+                  stroke="none"
+                />
+                <path
+                  d={sleeveRightPath}
+                  fill="url(#fabricWeave)"
                   stroke="none"
                 />
               </>
@@ -371,7 +434,8 @@ export default function BlousePreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={frontBodyPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={frontBodyPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={frontBodyPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Extras: Embroidery Accent */}
             {customization.extras?.includes("Embroidery") && (
@@ -385,7 +449,7 @@ export default function BlousePreview({
               />
             )}
 
-            {/* Collar Neck lapels */}
+            {/* Collar Neck */}
             {neckStyle === "Collar Neck" && (
               <g stroke="#513252" strokeWidth="2" fill="none">
                 <path
@@ -393,8 +457,18 @@ export default function BlousePreview({
                   fill={`url(#${patternId})`}
                 />
                 <path
+                  d={`M ${neckLeft} ${yShoulder} L ${xCenter - 5} ${yShoulder + 20} L ${xCenter} ${yShoulder + 18}`}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
+                />
+                <path
                   d={`M ${neckRight} ${yShoulder} L ${xCenter + 5} ${yShoulder + 20} L ${xCenter} ${yShoulder + 18}`}
                   fill={`url(#${patternId})`}
+                />
+                <path
+                  d={`M ${neckRight} ${yShoulder} L ${xCenter + 5} ${yShoulder + 20} L ${xCenter} ${yShoulder + 18}`}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
                 />
               </g>
             )}
@@ -426,7 +500,7 @@ export default function BlousePreview({
                 {/* Mirroring sleeves for back view */}
                 <path
                   d={sleeveLeftPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-left)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -437,8 +511,13 @@ export default function BlousePreview({
                   stroke="none"
                 />
                 <path
+                  d={sleeveLeftPath}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
+                />
+                <path
                   d={sleeveRightPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-right)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -446,6 +525,11 @@ export default function BlousePreview({
                 <path
                   d={sleeveRightPath}
                   fill="url(#shadingGrad)"
+                  stroke="none"
+                />
+                <path
+                  d={sleeveRightPath}
+                  fill="url(#fabricWeave)"
                   stroke="none"
                 />
               </>
@@ -478,7 +562,8 @@ export default function BlousePreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={backBodyPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={backBodyPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={backBodyPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Back Hook-and-Eye Center Seam */}
             <line
@@ -511,44 +596,44 @@ export default function BlousePreview({
             {/* Back Tie String (Dori) & Hanging Tassels (Classic Boutique Blouse back feature!) */}
             {(customization.extras?.includes("Tassels") ||
               backNeckDepth > 50) && (
-              <g>
-                {/* Dori horizontal curved string */}
-                <path
-                  d={`M ${shoulderLeft + 20} ${yShoulder + 20} Q ${xCenter} ${yShoulder + 32} ${shoulderRight - 20} ${yShoulder + 20}`}
-                  fill="none"
-                  stroke="#c99a2e"
-                  strokeWidth="2"
-                />
-
-                {/* Hanging strings */}
-                <path
-                  d={`M ${xCenter - 10} ${yShoulder + 26} Q ${xCenter - 22} ${yShoulder + 65} ${xCenter - 26} ${yShoulder + 90}`}
-                  fill="none"
-                  stroke="#c99a2e"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d={`M ${xCenter + 10} ${yShoulder + 26} Q ${xCenter + 22} ${yShoulder + 65} ${xCenter + 26} ${yShoulder + 90}`}
-                  fill="none"
-                  stroke="#c99a2e"
-                  strokeWidth="1.5"
-                />
-
-                {/* Tassels */}
-                <g fill="#c99a2e" stroke="#c99a2e">
-                  {/* Left Tassel */}
-                  <circle cx={xCenter - 26} cy={yShoulder + 90} r="3.5" />
+                <g>
+                  {/* Dori horizontal curved string */}
                   <path
-                    d={`M ${xCenter - 30} ${yShoulder + 90} L ${xCenter - 34} ${yShoulder + 105} L ${xCenter - 22} ${yShoulder + 105} Z`}
+                    d={`M ${shoulderLeft + 20} ${yShoulder + 20} Q ${xCenter} ${yShoulder + 32} ${shoulderRight - 20} ${yShoulder + 20}`}
+                    fill="none"
+                    stroke="#c99a2e"
+                    strokeWidth="2"
                   />
-                  {/* Right Tassel */}
-                  <circle cx={xCenter + 26} cy={yShoulder + 90} r="3.5" />
+
+                  {/* Hanging strings */}
                   <path
-                    d={`M ${xCenter + 22} ${yShoulder + 90} L ${xCenter + 18} ${yShoulder + 105} L ${xCenter + 30} ${yShoulder + 105} Z`}
+                    d={`M ${xCenter - 10} ${yShoulder + 26} Q ${xCenter - 22} ${yShoulder + 65} ${xCenter - 26} ${yShoulder + 90}`}
+                    fill="none"
+                    stroke="#c99a2e"
+                    strokeWidth="1.5"
                   />
+                  <path
+                    d={`M ${xCenter + 10} ${yShoulder + 26} Q ${xCenter + 22} ${yShoulder + 65} ${xCenter + 26} ${yShoulder + 90}`}
+                    fill="none"
+                    stroke="#c99a2e"
+                    strokeWidth="1.5"
+                  />
+
+                  {/* Tassels */}
+                  <g fill="#c99a2e" stroke="#c99a2e">
+                    {/* Left Tassel */}
+                    <circle cx={xCenter - 26} cy={yShoulder + 90} r="3.5" />
+                    <path
+                      d={`M ${xCenter - 30} ${yShoulder + 90} L ${xCenter - 34} ${yShoulder + 105} L ${xCenter - 22} ${yShoulder + 105} Z`}
+                    />
+                    {/* Right Tassel */}
+                    <circle cx={xCenter + 26} cy={yShoulder + 90} r="3.5" />
+                    <path
+                      d={`M ${xCenter + 22} ${yShoulder + 90} L ${xCenter + 18} ${yShoulder + 105} L ${xCenter + 30} ${yShoulder + 105} Z`}
+                    />
+                  </g>
                 </g>
-              </g>
-            )}
+              )}
           </>
         )}
 
@@ -560,7 +645,7 @@ export default function BlousePreview({
               <>
                 <path
                   d={sideSleevePath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-left)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -568,6 +653,11 @@ export default function BlousePreview({
                 <path
                   d={sideSleevePath}
                   fill="url(#shadingGrad)"
+                  stroke="none"
+                />
+                <path
+                  d={sideSleevePath}
+                  fill="url(#fabricWeave)"
                   stroke="none"
                 />
               </>
@@ -581,7 +671,8 @@ export default function BlousePreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={sideBodyPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={sideBodyPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={sideBodyPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Armhole profile stitch outline */}
             <path

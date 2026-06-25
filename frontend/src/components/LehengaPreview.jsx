@@ -264,21 +264,63 @@ export default function LehengaPreview({
       style={{ overflow: "visible" }}
     >
       <defs>
+        {/* Main fabric pattern - scaled up for better detail visibility */}
         <pattern
           id={patternId}
           patternUnits="userSpaceOnUse"
-          width="120"
-          height="120"
+          width="400"
+          height="500"
         >
           <image
             href={fabricImage}
             x="0"
             y="0"
-            width="120"
-            height="120"
+            width="400"
+            height="500"
             preserveAspectRatio="xMidYMid slice"
           />
         </pattern>
+
+        {/* Bias-rotated fabric patterns for sleeves to simulate realistic fabric cuts */}
+        <pattern
+          id={`${patternId}-sleeve-left`}
+          patternUnits="userSpaceOnUse"
+          width="400"
+          height="500"
+          patternTransform="rotate(15)"
+        >
+          <image
+            href={fabricImage}
+            x="0"
+            y="0"
+            width="400"
+            height="500"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </pattern>
+        <pattern
+          id={`${patternId}-sleeve-right`}
+          patternUnits="userSpaceOnUse"
+          width="400"
+          height="500"
+          patternTransform="rotate(-15)"
+        >
+          <image
+            href={fabricImage}
+            x="0"
+            y="0"
+            width="400"
+            height="500"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </pattern>
+
+        {/* Weave texture overlay pattern representing linen/silk cloth weave */}
+        <pattern id="fabricWeave" width="8" height="8" patternUnits="userSpaceOnUse">
+          <path d="M 0 4 L 8 4 M 4 0 L 4 8" stroke="#513252" strokeWidth="0.4" opacity="0.10" />
+          <path d="M 0 0 L 8 8" stroke="#ffffff" strokeWidth="0.3" opacity="0.06" />
+        </pattern>
+
         <filter id="sketchShadow" x="-10%" y="-10%" width="120%" height="120%">
           <feDropShadow
             dx="1"
@@ -288,10 +330,21 @@ export default function LehengaPreview({
             floodOpacity="0.12"
           />
         </filter>
+
+        {/* 3D Volumetric cylindrical lighting gradient */}
+        <linearGradient id="bodyShading" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#000000" stopOpacity="0.22" />
+          <stop offset="18%" stopColor="#000000" stopOpacity="0.04" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.24" />
+          <stop offset="82%" stopColor="#000000" stopOpacity="0.04" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.22" />
+        </linearGradient>
+
+        {/* Diagonal lighting gradient for sleeves / side views */}
         <linearGradient id="shadingGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
           <stop offset="50%" stopColor="#000000" stopOpacity="0" />
-          <stop offset="100%" stopColor="#000000" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.15" />
         </linearGradient>
       </defs>
 
@@ -356,7 +409,7 @@ export default function LehengaPreview({
               <>
                 <path
                   d={sleeveLeftPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-left)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -367,8 +420,13 @@ export default function LehengaPreview({
                   stroke="none"
                 />
                 <path
+                  d={sleeveLeftPath}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
+                />
+                <path
                   d={sleeveRightPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-right)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -376,6 +434,11 @@ export default function LehengaPreview({
                 <path
                   d={sleeveRightPath}
                   fill="url(#shadingGrad)"
+                  stroke="none"
+                />
+                <path
+                  d={sleeveRightPath}
+                  fill="url(#fabricWeave)"
                   stroke="none"
                 />
               </>
@@ -408,7 +471,8 @@ export default function LehengaPreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={frontCholiPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={frontCholiPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={frontCholiPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Lehenga Skirt */}
             <path
@@ -418,7 +482,8 @@ export default function LehengaPreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={lehengaSkirtPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={lehengaSkirtPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={lehengaSkirtPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Skirt Waistband detail */}
             <path
@@ -477,8 +542,18 @@ export default function LehengaPreview({
                   fill={`url(#${patternId})`}
                 />
                 <path
+                  d={`M ${neckLeft} ${yShoulder} L ${xCenter - 4} ${yShoulder + 12} L ${xCenter} ${yShoulder + 10}`}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
+                />
+                <path
                   d={`M ${neckRight} ${yShoulder} L ${xCenter + 4} ${yShoulder + 12} L ${xCenter} ${yShoulder + 10}`}
                   fill={`url(#${patternId})`}
+                />
+                <path
+                  d={`M ${neckRight} ${yShoulder} L ${xCenter + 4} ${yShoulder + 12} L ${xCenter} ${yShoulder + 10}`}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
                 />
               </g>
             )}
@@ -517,7 +592,7 @@ export default function LehengaPreview({
               <>
                 <path
                   d={sleeveLeftPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-left)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -528,8 +603,13 @@ export default function LehengaPreview({
                   stroke="none"
                 />
                 <path
+                  d={sleeveLeftPath}
+                  fill="url(#fabricWeave)"
+                  stroke="none"
+                />
+                <path
                   d={sleeveRightPath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-right)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -537,6 +617,11 @@ export default function LehengaPreview({
                 <path
                   d={sleeveRightPath}
                   fill="url(#shadingGrad)"
+                  stroke="none"
+                />
+                <path
+                  d={sleeveRightPath}
+                  fill="url(#fabricWeave)"
                   stroke="none"
                 />
               </>
@@ -569,7 +654,8 @@ export default function LehengaPreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={backCholiPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={backCholiPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={backCholiPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Hooks line down the middle of Choli */}
             <line
@@ -626,7 +712,8 @@ export default function LehengaPreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={lehengaSkirtPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={lehengaSkirtPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={lehengaSkirtPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Skirt Waistband detail */}
             <path
@@ -665,7 +752,7 @@ export default function LehengaPreview({
               <>
                 <path
                   d={sideSleevePath}
-                  fill={`url(#${patternId})`}
+                  fill={`url(#${patternId}-sleeve-left)`}
                   stroke="#513252"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
@@ -673,6 +760,11 @@ export default function LehengaPreview({
                 <path
                   d={sideSleevePath}
                   fill="url(#shadingGrad)"
+                  stroke="none"
+                />
+                <path
+                  d={sideSleevePath}
+                  fill="url(#fabricWeave)"
                   stroke="none"
                 />
               </>
@@ -686,7 +778,8 @@ export default function LehengaPreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={sideCholiPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={sideCholiPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={sideCholiPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Side Lehenga Skirt */}
             <path
@@ -696,7 +789,8 @@ export default function LehengaPreview({
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
-            <path d={sideSkirtPath} fill="url(#shadingGrad)" stroke="none" />
+            <path d={sideSkirtPath} fill="url(#bodyShading)" stroke="none" />
+            <path d={sideSkirtPath} fill="url(#fabricWeave)" stroke="none" />
 
             {/* Armhole profile stitch outline */}
             <path

@@ -16,8 +16,8 @@ export default function PlaceOrder() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successOrder, setSuccessOrder] = useState(null);
-  const [customerPhone, setCustomerPhone] = useState(user?.phone || "");
-  const [phoneError, setPhoneError] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryDateError, setDeliveryDateError] = useState("");
   const price = estimatePrice(draft.selectedOutfit?.id, draft.customization);
   const orderDate = new Date();
 
@@ -35,16 +35,23 @@ export default function PlaceOrder() {
   }
 
   async function handleConfirm() {
-    const digits = customerPhone.replace(/\D/g, "");
+    const defaultPhone = user?.phone || "";
+    const digits = defaultPhone.replace(/\D/g, "");
     if (digits.length < 10) {
-      setPhoneError("Please enter a valid 10-digit mobile number.");
+      setError("Please update your WhatsApp mobile number in your Profile first.");
       return;
     }
-    setPhoneError("");
+
+    if (!deliveryDate) {
+      setDeliveryDateError("Please select your preferred delivery date.");
+      return;
+    }
+    setDeliveryDateError("");
     setError("");
     setLoading(true);
 
     try {
+      const formattedPhone = digits.length === 10 ? `91${digits}` : digits;
       const payload = {
         outfit_type: draft.selectedOutfit.id,
         outfit_title: draft.selectedOutfit.title,
@@ -59,8 +66,9 @@ export default function PlaceOrder() {
         ai_preview_image: draft.aiPreviewImage || null,
         customer_name: user.name,
         customer_email: user.email,
-        customer_phone: digits.length === 10 ? `91${digits}` : digits,
+        customer_phone: formattedPhone,
         unit: draft.unit || "Inches",
+        deliveryDate: deliveryDate,
       };
 
       const data = await createOrder(payload);
@@ -106,28 +114,25 @@ export default function PlaceOrder() {
             </div>
           </div>
 
+
+
           <div className="mt-5">
             <label className="grid gap-2 text-sm font-bold text-plum">
-              <span className="flex items-center gap-2">
-                <Phone size={15} />
-                WhatsApp Mobile Number
-              </span>
+              <span>Preferred Delivery Date</span>
               <input
                 className="input-field"
-                type="tel"
-                value={customerPhone}
+                type="date"
+                value={deliveryDate}
                 onChange={(e) => {
-                  setCustomerPhone(e.target.value);
-                  setPhoneError("");
+                  setDeliveryDate(e.target.value);
+                  setDeliveryDateError("");
                 }}
-                placeholder="e.g. 9876543210"
                 required
-                maxLength={15}
               />
             </label>
-            {phoneError && (
+            {deliveryDateError && (
               <p className="mt-2 rounded-md bg-rose/10 px-4 py-2 text-xs font-semibold text-rose">
-                {phoneError}
+                {deliveryDateError}
               </p>
             )}
           </div>
@@ -152,7 +157,7 @@ export default function PlaceOrder() {
             <CheckCircle2 className="mx-auto mb-4 text-gold" size={54} />
             <h2 className="font-display text-3xl font-bold text-plum">Order Confirmed</h2>
             <p className="mt-3 text-sm leading-6 text-ink/65">
-              Your order ID is <span className="font-bold text-plum">{successOrder.id}</span>.
+              Your order ID is <span className="font-bold text-plum">{successOrder.orderNum || successOrder.id}</span>.
             </p>
             <button
               type="button"

@@ -5,6 +5,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { sampleFabrics } from "../utils/data.js";
 import { getDraft, saveDraft } from "../utils/storage.js";
+import { compressImage } from "../utils/image.js";
 
 export default function UploadFabric() {
   const { user } = useAuth();
@@ -37,10 +38,18 @@ export default function UploadFabric() {
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
-      setFabricImage(reader.result);
-      setFileName(file.name);
-      setError("");
+    reader.onload = async () => {
+      try {
+        const compressed = await compressImage(reader.result);
+        setFabricImage(compressed);
+        setFileName(file.name);
+        setError("");
+      } catch (err) {
+        console.error("Compression error:", err);
+        setFabricImage(reader.result);
+        setFileName(file.name);
+        setError("");
+      }
     };
     reader.readAsDataURL(file);
   }

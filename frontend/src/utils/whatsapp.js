@@ -18,7 +18,7 @@ export function buildWhatsAppOrderMessage(order) {
     "",
     "Your Dhanvika Ethnic Choice Boutique order has been saved.",
     "",
-    `Order ID: ${order.id}`,
+    `Order ID: ${order.orderNum || order.id}`,
     `Outfit: ${order.outfit?.title || "Custom outfit"}`,
     `Price: Rs. ${Number(order.price || 0).toLocaleString("en-IN")}`,
     `Status: ${order.status}`,
@@ -26,6 +26,10 @@ export function buildWhatsAppOrderMessage(order) {
     `Sleeve Style: ${order.customization?.sleeveStyle || "N/A"}`,
     `Fitting: ${order.customization?.fittingStyle || "N/A"}`,
   ];
+
+  if (order.description) {
+    lines.push(`Description: ${order.description}`);
+  }
 
   if (order.measurements && Object.keys(order.measurements).length > 0) {
     lines.push("");
@@ -40,6 +44,9 @@ export function buildWhatsAppOrderMessage(order) {
 
   lines.push("");
   lines.push(`Order Date: ${new Date(order.createdAt).toLocaleDateString("en-IN")}`);
+  if (order.deliveryDate) {
+    lines.push(`Delivery Date: ${new Date(order.deliveryDate).toLocaleDateString("en-IN")}`);
+  }
   lines.push("");
   lines.push("Thank you for choosing Dhanvika Ethnic Choice Boutique.");
 
@@ -64,7 +71,7 @@ export function buildWhatsAppReadyMessage(order) {
     "",
     "🎉 Great news! Your order is *Ready* for pickup/delivery.",
     "",
-    `Order ID: ${order.id}`,
+    `Order ID: ${order.orderNum || order.id}`,
     `Outfit: ${order.outfit?.title || "Custom outfit"}`,
     `Price: Rs. ${Number(order.price || 0).toLocaleString("en-IN")}`,
     "",

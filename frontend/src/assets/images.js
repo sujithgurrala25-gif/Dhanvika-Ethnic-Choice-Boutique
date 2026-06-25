@@ -16,7 +16,7 @@ export const boutiqueImages = {
   bridal:
     "https://images.unsplash.com/photo-1515626553181-0f218cb03f14?auto=format&fit=crop&w=900&q=80",
   fabricSilk:
-    "https://images.unsplash.com/photo-1604176424472-9d925f9b868b?auto=format&fit=crop&w=900&q=80",
+    "https://itokri.com/cdn/shop/files/pink-pure-silk-plain-fabric-07-fabrics-531.jpg?v=1769525098&width=480",
   fabricCotton:
     "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=900&q=80",
   fabricEmbroidery:

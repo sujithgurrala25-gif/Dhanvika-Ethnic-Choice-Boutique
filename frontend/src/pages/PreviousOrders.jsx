@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, XCircle } from "lucide-react";
+import Pagination from "../components/Pagination.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -13,6 +14,8 @@ export default function PreviousOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const ORDERS_PAGE_SIZE = 6;
+  const [ordersPage, setOrdersPage] = useState(1);
 
   useEffect(() => {
     async function load() {
@@ -75,6 +78,12 @@ export default function PreviousOrders() {
     );
   }
 
+  const ordersTotalPages = Math.ceil(orders.length / ORDERS_PAGE_SIZE);
+  const pagedOrders = orders.slice(
+    (ordersPage - 1) * ORDERS_PAGE_SIZE,
+    ordersPage * ORDERS_PAGE_SIZE
+  );
+
   return (
     <section className="page-shell">
       <div className="mb-8">
@@ -83,7 +92,7 @@ export default function PreviousOrders() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {orders.map((order) => {
+        {pagedOrders.map((order) => {
           const isProduct = order.is_product_order || !order.measurements || Object.keys(order.measurements).length === 0;
           return (
             <article key={order.id} className="card overflow-hidden">
@@ -119,6 +128,11 @@ export default function PreviousOrders() {
                       <p className="mt-1 text-sm text-ink/58">
                         {new Date(order.createdAt).toLocaleDateString()}
                       </p>
+                      {order.deliveryDate && (
+                        <p className="mt-1 text-xs text-rose font-bold">
+                          Delivery Date: {new Date(order.deliveryDate).toLocaleDateString()}
+                        </p>
+                      )}
                       {isProduct && (
                         <span className="mt-1.5 inline-block rounded bg-cream px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">
                           Ready-made Product
@@ -160,6 +174,13 @@ export default function PreviousOrders() {
           );
         })}
       </div>
+      {ordersTotalPages > 1 && (
+        <Pagination
+          current={ordersPage}
+          total={ordersTotalPages}
+          onChange={setOrdersPage}
+        />
+      )}
     </section>
   );
 }

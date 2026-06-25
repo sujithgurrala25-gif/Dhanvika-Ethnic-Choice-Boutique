@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail, MessageCircle, Phone, ShoppingBag, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Mail, MessageCircle, Phone, ShoppingBag, Trash2, Users } from "lucide-react";
+import Pagination from "../components/Pagination.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { fetchUsers } from "../services/userService.js";
+import { deleteUserApi, fetchUsers } from "../services/userService.js";
 import { fetchOrders } from "../services/orderService.js";
 import { formatPrice } from "../utils/pricing.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
@@ -15,6 +16,10 @@ export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const CUSTOMERS_PAGE_SIZE = 10;
+  const [customersPage, setCustomersPage] = useState(1);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -52,6 +57,21 @@ export default function AdminCustomers() {
     loadData();
   }, [loadData]);
 
+  const handleDeleteConfirm = async () => {
+    if (!customerToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteUserApi(customerToDelete.id);
+      setCustomerToDelete(null);
+      await loadData();
+    } catch (err) {
+      console.error("Error deleting customer:", err);
+      alert("Failed to delete customer. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Map user email to their orders, phone and total spending
   const customerStats = customers.map((customer) => {
     const customerOrders = orders.filter(
@@ -80,6 +100,12 @@ export default function AdminCustomers() {
       phone,
     };
   });
+
+  const customersTotalPages = Math.ceil(customerStats.length / CUSTOMERS_PAGE_SIZE);
+  const pagedCustomerStats = customerStats.slice(
+    (customersPage - 1) * CUSTOMERS_PAGE_SIZE,
+    customersPage * CUSTOMERS_PAGE_SIZE
+  );
 
   if (loading) {
     return (
@@ -153,58 +179,118 @@ export default function AdminCustomers() {
         </div>
 
         {customerStats.length ? (
-          <div className="divide-y divide-plum/10">
-            {customerStats.map((customer) => (
-              <article
-                key={customer.id || customer.email}
-                className="grid gap-4 p-5 md:grid-cols-[2fr_1fr_1fr] items-center"
-              >
-                <div>
-                  <h3 className="font-display text-xl font-bold text-plum">{customer.name}</h3>
-                  <div className="mt-2 flex flex-col gap-1 text-sm text-ink/65">
-                    <span className="flex items-center gap-2">
-                      <Mail size={14} className="text-gold" />
-                      <a href={`mailto:${customer.email}`} className="hover:text-plum hover:underline">
-                        {customer.email}
-                      </a>
-                    </span>
-                    {customer.phone && (
+          <>
+            <div className="divide-y divide-plum/10">
+              {pagedCustomerStats.map((customer) => (
+                <article
+                  key={customer.id || customer.email}
+                  className="grid gap-4 p-5 md:grid-cols-[2fr_1fr_1fr] items-center"
+                >
+                  <div>
+                    <h3 className="font-display text-xl font-bold text-plum">{customer.name}</h3>
+                    <div className="mt-2 flex flex-col gap-1 text-sm text-ink/65">
                       <span className="flex items-center gap-2">
-                        <Phone size={14} className="text-gold" />
-                        <span>{customer.phone}</span>
+                        <Mail size={14} className="text-gold" />
+                        <a href={`mailto:${customer.email}`} className="hover:text-plum hover:underline">
+                          {customer.email}
+                        </a>
                       </span>
-                    )}
+                      {customer.phone && (
+                        <span className="flex items-center gap-2">
+                          <Phone size={14} className="text-gold" />
+                          <span>{customer.phone}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="text-left md:text-center">
-                  <p className="text-xs font-bold uppercase text-ink/50">Total Orders</p>
-                  <p className="text-lg font-bold text-plum">{customer.ordersCount} orders</p>
-                  <p className="text-xs text-ink/60">Spent: {formatPrice(customer.totalSpent)}</p>
-                </div>
+                  <div className="text-left md:text-center">
+                    <p className="text-xs font-bold uppercase text-ink/50">Total Orders</p>
+                    <p className="text-lg font-bold text-plum">{customer.ordersCount} orders</p>
+                    <p className="text-xs text-ink/60">Spent: {formatPrice(customer.totalSpent)}</p>
+                  </div>
 
-                <div className="flex justify-end gap-2">
-                  {customer.phone ? (
-                    <a
-                      href={`https://wa.me/${normalizeWhatsAppPhone(customer.phone)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-primary inline-flex items-center gap-2 text-xs bg-green-600 hover:bg-green-700 text-white w-full md:w-auto justify-center"
+                  <div className="flex items-center justify-end gap-3 w-full md:w-auto">
+                    {customer.phone ? (
+                      <a
+                        href={`https://wa.me/${normalizeWhatsAppPhone(customer.phone)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-primary inline-flex items-center gap-2 text-xs bg-green-600 hover:bg-green-700 text-white w-full md:w-auto justify-center animate-in fade-in duration-200"
+                      >
+                        <MessageCircle size={15} />
+                        WhatsApp Chat
+                      </a>
+                    ) : (
+                      <span className="text-xs text-ink/40 font-semibold italic mr-2 animate-in fade-in duration-200">No phone contact</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setCustomerToDelete(customer)}
+                      className="inline-flex items-center justify-center p-2.5 rounded-md border border-rose/30 bg-rose/5 text-rose hover:bg-rose hover:text-white transition-all duration-200 animate-in fade-in duration-200"
+                      title="Delete Customer"
                     >
-                      <MessageCircle size={15} />
-                      WhatsApp Chat
-                    </a>
-                  ) : (
-                    <span className="text-xs text-ink/40 font-semibold italic">No phone contact</span>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            {customersTotalPages > 1 && (
+              <div className="p-5 border-t border-plum/10 bg-white">
+                <Pagination
+                  current={customersPage}
+                  total={customersTotalPages}
+                  onChange={setCustomersPage}
+                />
+              </div>
+            )}
+          </>
         ) : (
           <div className="p-8 text-center text-sm text-ink/60">No customer accounts registered yet.</div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {customerToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-plum/50 backdrop-blur-sm transition-all duration-300">
+          <div className="card w-full max-w-md overflow-hidden bg-white p-6 shadow-aura animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-rose mb-4">
+              <AlertTriangle size={28} className="shrink-0" />
+              <h3 className="font-display text-xl font-bold text-plum">Delete Customer Account</h3>
+            </div>
+            
+            <p className="text-sm text-ink/75 leading-relaxed mb-6">
+              Are you sure you want to delete <strong className="text-plum">{customerToDelete.name}</strong> ({customerToDelete.email})? 
+              This action will permanently remove their registered customer profile. Their order history will remain preserved in the system database.
+            </p>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setCustomerToDelete(null)}
+                disabled={deleting}
+                className="btn-secondary px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-rose px-5 py-3 text-sm font-bold text-white shadow-aura transition hover:-translate-y-0.5 hover:bg-rose/90 focus:outline-none focus:ring-4 focus:ring-rose/20"
+              >
+                {deleting ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                {deleting ? "Deleting..." : "Delete Customer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

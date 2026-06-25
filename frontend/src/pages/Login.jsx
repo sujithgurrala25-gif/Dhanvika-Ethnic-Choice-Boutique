@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { LogIn } from "lucide-react";
+import { LogIn, Eye, EyeOff } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -14,6 +14,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   if (user) return <Navigate to={dashboardPathFor(user)} replace />;
 
@@ -99,16 +100,25 @@ export default function Login() {
           </label>
           <label className="grid gap-2 text-sm font-bold text-plum">
             Password
-            <input
-              className="input-field"
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              minLength={4}
-              placeholder="Enter password"
-            />
+            <div className="relative">
+              <input
+                className="input-field pr-10"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                minLength={4}
+                placeholder="Enter password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-plum/50 hover:text-plum"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </label>
           <div className="text-right">
             <button

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, User, Pencil, X, Key } from "lucide-react";
+import { ArrowLeft, Save, User, Pencil, X, Key, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
 
@@ -29,6 +29,9 @@ export default function Profile() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -53,6 +56,12 @@ export default function Profile() {
     // Basic validation
     if (form.name.trim().length < 2) {
       setError("Name must be at least 2 characters long.");
+      return;
+    }
+
+    const nameRegex = /^[a-zA-Z\s.]+$/;
+    if (!nameRegex.test(form.name.trim())) {
+      setError("Name must only contain alphabets.");
       return;
     }
 
@@ -84,6 +93,9 @@ export default function Profile() {
       newPassword: "",
       confirmPassword: "",
     });
+    setShowOldPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setPasswordSuccess("");
     setPasswordError("");
     setShowPasswordForm(false);
@@ -113,6 +125,9 @@ export default function Profile() {
         newPassword: "",
         confirmPassword: "",
       });
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
       setTimeout(() => {
         setShowPasswordForm(false);
         setPasswordSuccess("");
@@ -286,42 +301,69 @@ export default function Profile() {
             <form onSubmit={handlePasswordSubmit} className="grid gap-4">
               <label className="grid gap-1 text-sm font-bold text-plum">
                 Current Password
-                <input
-                  className="input-field"
-                  type="password"
-                  name="oldPassword"
-                  value={passForm.oldPassword}
-                  onChange={(e) => setPassForm({ ...passForm, oldPassword: e.target.value })}
-                  required
-                  placeholder="Enter current password"
-                />
+                <div className="relative">
+                  <input
+                    className="input-field pr-10"
+                    type={showOldPassword ? "text" : "password"}
+                    name="oldPassword"
+                    value={passForm.oldPassword}
+                    onChange={(e) => setPassForm({ ...passForm, oldPassword: e.target.value })}
+                    required
+                    placeholder="Enter current password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-plum/50 hover:text-plum"
+                  >
+                    {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </label>
 
               <label className="grid gap-1 text-sm font-bold text-plum">
                 New Password
-                <input
-                  className="input-field"
-                  type="password"
-                  name="newPassword"
-                  value={passForm.newPassword}
-                  onChange={(e) => setPassForm({ ...passForm, newPassword: e.target.value })}
-                  required
-                  minLength={6}
-                  placeholder="At least 6 characters"
-                />
+                <div className="relative">
+                  <input
+                    className="input-field pr-10"
+                    type={showNewPassword ? "text" : "password"}
+                    name="newPassword"
+                    value={passForm.newPassword}
+                    onChange={(e) => setPassForm({ ...passForm, newPassword: e.target.value })}
+                    required
+                    minLength={6}
+                    placeholder="At least 6 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-plum/50 hover:text-plum"
+                  >
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </label>
 
               <label className="grid gap-1 text-sm font-bold text-plum">
                 Confirm New Password
-                <input
-                  className="input-field"
-                  type="password"
-                  name="confirmPassword"
-                  value={passForm.confirmPassword}
-                  onChange={(e) => setPassForm({ ...passForm, confirmPassword: e.target.value })}
-                  required
-                  placeholder="Re-type new password"
-                />
+                <div className="relative">
+                  <input
+                    className="input-field pr-10"
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={passForm.confirmPassword}
+                    onChange={(e) => setPassForm({ ...passForm, confirmPassword: e.target.value })}
+                    required
+                    placeholder="Re-type new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-plum/50 hover:text-plum"
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </label>
 
               {passwordSuccess && (

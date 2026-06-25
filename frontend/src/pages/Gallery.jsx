@@ -17,15 +17,20 @@ import {
   Image as ImageIcon,
   Pencil,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import Pagination from "../components/Pagination.jsx";
+import { compressImage } from "../utils/image.js";
 
 export default function Gallery() {
   const { user } = useAuth();
 
   //new
   const [galleryWorks, setGalleryWorks] = useState([]);
+  const GALLERY_PAGE_SIZE = 8;
+  const [galleryPage, setGalleryPage] = useState(1);
 
   useEffect(() => {
     loadGallery();
@@ -53,6 +58,57 @@ export default function Gallery() {
     description: "",
     images: "",
   });
+  const [uploadingImages, setUploadingImages] = useState(false);
+
+  const handleImageUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(file => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      alert("Please upload image files.");
+      return;
+    }
+
+    setUploadingImages(true);
+
+    try {
+      const readAndCompress = (file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = async () => {
+            try {
+              const compressed = await compressImage(reader.result);
+              resolve(compressed);
+            } catch (err) {
+              console.error("Compression error:", err);
+              resolve(reader.result);
+            }
+          };
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
+      };
+
+      const results = [];
+      for (const file of imageFiles) {
+        const dataUrl = await readAndCompress(file);
+        results.push(dataUrl);
+      }
+
+      setForm((prev) => {
+        const existing = prev.images ? prev.images.trim().split("\n").filter(Boolean) : [];
+        const combined = [...existing, ...results].join("\n");
+        return { ...prev, images: combined };
+      });
+    } catch (err) {
+      console.error("Image upload error:", err);
+      alert("Failed to upload and process images.");
+    } finally {
+      setUploadingImages(false);
+      event.target.value = "";
+    }
+  };
 
   function resetForm() {
     setForm({ id: null, title: "", category: "", description: "", images: "" });
@@ -165,6 +221,12 @@ export default function Gallery() {
     );
   }
 
+  const galleryTotalPages = Math.ceil(galleryWorks.length / GALLERY_PAGE_SIZE);
+  const pagedGalleryWorks = galleryWorks.slice(
+    (galleryPage - 1) * GALLERY_PAGE_SIZE,
+    galleryPage * GALLERY_PAGE_SIZE
+  );
+
   return (
     <section className="page-shell py-10">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -228,15 +290,83 @@ export default function Gallery() {
                 }))
               }
             />
-            <textarea
-              className="input-field md:col-span-2"
-              rows="4"
-              placeholder="Paste image URLs (one per line)."
-              value={form.images}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, images: event.target.value }))
-              }
-            />
+            <div className="md:col-span-2 grid gap-2 text-sm font-bold text-plum">
+              <span>Image URLs (one per line, or upload local files)</span>
+              <div className="flex flex-col gap-3">
+                <textarea
+                  className="input-field w-full"
+                  rows="4"
+                  placeholder="Paste image URLs (one per line) or upload files below..."
+                  value={form.images}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, images: event.target.value }))
+                  }
+                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="btn-secondary py-2.5 px-4 flex items-center justify-center gap-2 cursor-pointer text-xs select-none">
+                    {uploadingImages ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-plum border-t-transparent" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={14} />
+                        <span>Upload Images</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={uploadingImages}
+                      className="hidden"
+                    />
+                  </label>
+                  {form.images && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, images: "" }))}
+                      className="text-xs font-semibold text-rose hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                {form.images && (
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    {form.images.split("\n").map((imgUrl, index) => {
+                      const trimmed = imgUrl.trim();
+                      if (!trimmed) return null;
+                      return (
+                        <div key={index} className="relative group flex items-center gap-2">
+                          <img
+                            src={trimmed}
+                            alt={`Preview ${index + 1}`}
+                            className="h-14 w-14 rounded object-cover border border-plum/10"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => {
+                                const current = prev.images.split("\n");
+                                current.splice(index, 1);
+                                return { ...prev, images: current.join("\n") };
+                              });
+                            }}
+                            className="absolute -top-1 -right-1 h-4 w-4 bg-rose text-white rounded-full flex items-center justify-center text-[10px] hover:bg-rose/85 shadow-md"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="md:col-span-2 flex gap-3">
               <button type="submit" className="btn-primary">
                 {form.id ? "Update Work" : "Add New Work"}
@@ -247,7 +377,7 @@ export default function Gallery() {
       )}
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {galleryWorks.map((item) => {
+        {pagedGalleryWorks.map((item) => {
           const images = (item.images || [item.image]).filter(Boolean);
           return (
             <article key={item.id} className="card overflow-hidden">
@@ -299,18 +429,16 @@ export default function Gallery() {
                     <button
                       type="button"
                       onClick={() => handleEdit(item)}
-                      className="btn-secondary flex items-center gap-1"
+                      className="btn-secondary flex-center gap-1"
                     >
-                      {" "}
-                      <Pencil size={14} /> Edit{" "}
+                      <Pencil size={14} /> Edit
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(item.id)}
-                      className="btn-secondary flex items-center gap-1 text-rose"
+                      className="btn-secondary flex-center gap-1 text-rose"
                     >
-                      {" "}
-                      <Trash2 size={14} /> Delete{" "}
+                      <Trash2 size={14} /> Delete
                     </button>
                   </div>
                 )}
@@ -319,6 +447,13 @@ export default function Gallery() {
           );
         })}
       </div>
+      {galleryTotalPages > 1 && (
+        <Pagination
+          current={galleryPage}
+          total={galleryTotalPages}
+          onChange={setGalleryPage}
+        />
+      )}
 
       {lightbox &&
         (() => {
@@ -358,7 +493,7 @@ export default function Gallery() {
                     <img
                       src={currentImage}
                       alt={`${work?.title} preview ${lightbox.imageIndex + 1}`}
-                      className="h-[420px] w-full rounded-2xl object-cover"
+                      className="h-[420px] w-full rounded-2xl object-contain bg-black/10"
                     />
                     {images.length > 1 && (
                       <>

@@ -8,7 +8,6 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
-  Scissors,
   ShoppingBag,
   Sparkles,
   UserRound,
@@ -18,6 +17,7 @@ import {
   Package,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import logo from "../assets/logo.jpg";
 
 function getNavItems(role) {
   if (role === "admin") {
@@ -28,6 +28,11 @@ function getNavItems(role) {
         to: "/admin-dashboard",
         label: "Admin Dashboard",
         icon: LayoutDashboard,
+      },
+      {
+        to: "/admin-customers",
+        label: "Customers",
+        icon: Users,
       },
     ];
   }
@@ -81,9 +86,11 @@ export default function Navbar() {
           className="flex items-center gap-3"
           onClick={() => setOpen(false)}
         >
-          <span className="grid h-11 w-11 place-items-center rounded-md bg-plum text-white shadow-aura">
-            <Scissors size={22} />
-          </span>
+          <img
+            src={logo}
+            alt="Dhanvika Ethnic Choice Boutique"
+            className="h-14 w-14 rounded-full object-cover shadow-md ring-2 ring-gold/40"
+          />
           <span>
             <span className="block font-display text-xl font-bold text-plum">
               Dhanvika Ethnic Choice

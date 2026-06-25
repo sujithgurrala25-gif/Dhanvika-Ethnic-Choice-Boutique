@@ -29,7 +29,7 @@ export function generateInvoicePDF(order) {
   doc.setFont("helvetica", "normal");
 
   const customerName = order.customerName || order.customer_name || "Customer";
-  const orderId = order.id || "N/A";
+  const orderId = order.orderNum || order.id || "N/A";
   const outfitTitle = order.outfit?.title || order.outfit_title || "Custom Outfit";
   const priceVal = Number(order.price || order.total_price || 0);
   const status = order.status || "Order Received";
@@ -56,13 +56,26 @@ export function generateInvoicePDF(order) {
   doc.text(`Fitting: ${fitting}`, 20, 112);
   doc.text(`Order Date: ${orderDateStr}`, 20, 120);
 
-  doc.text("Thank you for choosing StitchAura Boutique.", 20, 130);
+  let deliveryDateStr = "";
+  if (order.deliveryDate) {
+    deliveryDateStr = new Date(order.deliveryDate).toLocaleDateString("en-IN");
+  }
+
+  if (deliveryDateStr) {
+    doc.text(`Delivery Date: ${deliveryDateStr}`, 20, 128);
+    doc.text("Thank you for choosing StitchAura Boutique.", 20, 138);
+  } else {
+    doc.text("Thank you for choosing StitchAura Boutique.", 20, 130);
+  }
+
+  const invoiceY = deliveryDateStr ? 154 : 146;
+  const tableY = deliveryDateStr ? 162 : 154;
 
   // Section: INVOICE
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 80, 160);
-  doc.text("INVOICE", 20, 146);
+  doc.text("INVOICE", 20, invoiceY);
   doc.setTextColor(0, 0, 0);
 
   // Calculate invoice split
@@ -76,7 +89,6 @@ export function generateInvoicePDF(order) {
     clothPrice = priceVal - stitchingPrice;
   }
 
-  const tableY = 154;
   const rowHeight = 8;
 
   // Draw table borders and cells

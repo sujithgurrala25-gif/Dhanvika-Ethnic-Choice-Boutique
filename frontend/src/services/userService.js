@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
 const USERS_COL = "users";
@@ -100,4 +100,9 @@ export async function clearCartApi() {
   const userRef = doc(db, USERS_COL, uid);
   await updateDoc(userRef, { cart: [] });
   return { cart: [] };
+}
+
+export async function deleteUserApi(userId) {
+  await deleteDoc(doc(db, USERS_COL, userId));
+  return { ok: true };
 }

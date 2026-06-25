@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Eye, EyeOff } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -14,6 +14,7 @@ export default function Signup() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   if (user) return <Navigate to={dashboardPathFor(user)} replace />;
 
@@ -26,7 +27,31 @@ export default function Signup() {
     setError("");
     setLoading(true);
 
-    const result = await signup(form);
+    const nameRegex = /^[a-zA-Z\s.]+$/;
+    if (!nameRegex.test(form.name.trim())) {
+      setError("Name must only contain alphabets.");
+      setLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    if (!emailRegex.test(form.email.trim())) {
+      setError("Please enter a valid Gmail address (ending in @gmail.com).");
+      setLoading(false);
+      return;
+    }
+
+    const digits = form.phone.replace(/\D/g, "");
+    if (digits.length !== 10) {
+      setError("WhatsApp Mobile Number must be exactly 10 digits.");
+      setLoading(false);
+      return;
+    }
+
+    const result = await signup({
+      ...form,
+      phone: digits,
+    });
     setLoading(false);
 
     if (!result.ok) {
@@ -87,15 +112,24 @@ export default function Signup() {
           </label>
           <label className="grid gap-2 text-sm font-bold text-plum">
             Password
-            <input
-              className="input-field"
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              placeholder="Create password"
-            />
+            <div className="relative">
+              <input
+                className="input-field pr-10"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                placeholder="Create password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-plum/50 hover:text-plum"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </label>
           {error && <p className="rounded-md bg-rose/10 px-4 py-3 text-sm font-semibold text-rose">{error}</p>}
           <button type="submit" className="btn-primary w-full" disabled={loading}>

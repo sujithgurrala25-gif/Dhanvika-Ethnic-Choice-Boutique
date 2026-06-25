@@ -281,7 +281,7 @@ export default function Home() {
               </p>
               <h2 className="section-title">Choose your outfit</h2>
             </div>
-            <Link to="/select-outfit" className="btn-secondary">
+            <Link to="/user-dashboard?tab=browse" className="btn-secondary">
               View All
               <ArrowRight size={17} />
             </Link>
@@ -290,7 +290,7 @@ export default function Home() {
             {outfitCards.map((item) => (
               <Link
                 key={item.id}
-                to="/select-outfit"
+                to="/user-dashboard?tab=browse"
                 className="card group overflow-hidden transition hover:-translate-y-1"
               >
                 <img

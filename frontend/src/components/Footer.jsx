@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { Instagram, Mail, MapPin, Phone, Scissors } from "lucide-react";
+import { Instagram, Mail, MapPin, Phone } from "lucide-react";
+import logo from "../assets/logo.jpg";
 
 export default function Footer() {
   return (
@@ -7,9 +7,11 @@ export default function Footer() {
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_0.8fr_0.8fr] lg:px-8">
         <div>
           <div className="mb-4 flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-md bg-white/12">
-              <Scissors size={20} />
-            </span>
+            <img
+              src={logo}
+              alt="Dhanvika Ethnic Choice Boutique"
+              className="h-14 w-14 rounded-full object-cover shadow-md ring-2 ring-white/30"
+            />
             <div>
               <p className="font-display text-2xl font-bold">Dhanvika Ethnic Choice Boutique</p>
               <p className="text-sm text-white/70">Custom stitching with elegant finishing.</p>
@@ -24,9 +26,14 @@ export default function Footer() {
         <div>
           <p className="mb-3 text-sm font-bold uppercase text-gold">Studio</p>
           <div className="grid gap-3 text-sm text-white/75">
-            <span className="flex items-center gap-2">
+            <a
+              href="https://maps.app.goo.gl/8Lkax5woYKuXiJBk6"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-white transition-colors"
+            >
               <MapPin size={16} /> Kailash Hills, Gajularamaram, Hyderabad-500055
-            </span>
+            </a>
             <span className="flex items-center gap-2">
               <Phone size={16} /> +91 83413 03000
             </span>
@@ -39,12 +46,14 @@ export default function Footer() {
         <div>
           <p className="mb-3 text-sm font-bold uppercase text-gold">Links</p>
           <div className="grid gap-2 text-sm text-white/75">
-            <Link to="/select-outfit" className="hover:text-white">Start Designing</Link>
-            <Link to="/previous-orders" className="hover:text-white">Previous Orders</Link>
-            <Link to="/feedback" className="hover:text-white">Feedback</Link>
-            <span className="flex items-center gap-2 pt-2 text-white/60">
-              <Instagram size={16} /> @dhanvika_ethnic_choice
-            </span>
+            <a
+              href="https://www.instagram.com/dhanvikaboutique?igsh=b202NDZnZ2ppc2Nj"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+            >
+              <Instagram size={16} /> @dhanvikaboutique
+            </a>
           </div>
         </div>
       </div>

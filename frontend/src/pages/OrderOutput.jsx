@@ -54,7 +54,7 @@ export default function OrderOutput() {
     <section className="page-shell">
       <div className="mb-8">
         <p className="mb-3 text-sm font-bold uppercase text-gold">Final Order Output</p>
-        <h1 className="section-title">Order {order.id}</h1>
+        <h1 className="section-title">Order {order.orderNum || order.id}</h1>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -94,6 +94,7 @@ export default function OrderOutput() {
                 <Info label="Customer Phone" value={order.customer_phone || "N/A"} />
                 <Info label="Customer Email" value={order.customer_email || "N/A"} />
                 <Info label="Product Price" value={formatPrice(order.price)} />
+                {order.deliveryDate && <Info label="Preferred Delivery Date" value={new Date(order.deliveryDate).toLocaleDateString()} />}
                 <Info label="Order Status" value={order.status} />
               </div>
             ) : (
@@ -103,6 +104,7 @@ export default function OrderOutput() {
                 <Info label="Sleeve Style" value={order.customization?.sleeveStyle || "N/A"} />
                 <Info label="Fitting Type" value={order.customization?.fittingStyle || "N/A"} />
                 <Info label="Estimated Price" value={formatPrice(order.price)} />
+                {order.deliveryDate && <Info label="Preferred Delivery Date" value={new Date(order.deliveryDate).toLocaleDateString()} />}
                 <Info label="Extra Options" value={(order.customization?.extras || []).join(", ") || "None"} />
                 <Info label="Order Status" value={order.status} />
               </div>

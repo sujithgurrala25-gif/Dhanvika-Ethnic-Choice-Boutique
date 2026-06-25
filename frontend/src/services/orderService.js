@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { outfitOptions } from "../utils/data.js";
 
@@ -51,12 +51,46 @@ export async function createOrder(orderData) {
     image: orderData.fabric_image || ""
   };
 
+  let orderNum = orderData.orderNum;
+  if (!orderNum) {
+    let nextOrderNum = 1000;
+    try {
+      const q = query(collection(db, ORDERS_COL), orderBy("orderNum", "desc"), limit(1));
+      const qSnap = await getDocs(q);
+      if (!qSnap.empty) {
+        const highestOrder = qSnap.docs[0].data();
+        const highestNum = Number(highestOrder.orderNum);
+        if (!isNaN(highestNum) && highestNum >= 1000) {
+          nextOrderNum = highestNum + 1;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to query highest orderNum using orderBy, falling back to full scan:", err);
+      try {
+        const allSnap = await getDocs(collection(db, ORDERS_COL));
+        let highestNum = 999;
+        allSnap.forEach((doc) => {
+          const num = Number(doc.data().orderNum);
+          if (!isNaN(num) && num > highestNum) {
+            highestNum = num;
+          }
+        });
+        nextOrderNum = highestNum + 1;
+      } catch (scanErr) {
+        console.error("Full scan also failed, using fallback random order number:", scanErr);
+        nextOrderNum = Math.floor(1000 + Math.random() * 9000);
+      }
+    }
+    orderNum = nextOrderNum;
+  }
+
   const payload = {
     ...orderData,
     user_id: auth.currentUser?.uid || "offline",
+    orderNum,
     status: orderData.status || "Order Received",
     price: orderData.total_price || orderData.price || 0,
-    createdAt: new Date().toISOString(),
+    createdAt: orderData.createdAt || new Date().toISOString(),
     outfit: {
       id: outfit.id,
       title: outfit.title,
