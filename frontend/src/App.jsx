@@ -22,6 +22,8 @@ import AddOfflineOrder from "./pages/AddOfflineOrder.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
 import Profile from "./pages/Profile.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import Invoice from "./pages/Invoice.jsx";
+
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -149,6 +151,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/invoice/:orderId" element={<Invoice />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

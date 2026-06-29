@@ -48,6 +48,10 @@ export function buildWhatsAppOrderMessage(order) {
     lines.push(`Delivery Date: ${new Date(order.deliveryDate).toLocaleDateString("en-IN")}`);
   }
   lines.push("");
+  const invoiceUrl = `${window.location.origin}/invoice/${order.id}`;
+  lines.push(`*View & Print Invoice Slip:*`);
+  lines.push(invoiceUrl);
+  lines.push("");
   lines.push("Thank you for choosing Dhanvika Ethnic Choice Boutique.");
 
   return lines.join("\n");
@@ -66,6 +70,7 @@ export function buildWhatsAppOrderLink(order, message = buildWhatsAppOrderMessag
 }
 
 export function buildWhatsAppReadyMessage(order) {
+  const invoiceUrl = `${window.location.origin}/invoice/${order.id}`;
   return [
     `Hello ${order.customerName || "Customer"},`,
     "",
@@ -74,6 +79,9 @@ export function buildWhatsAppReadyMessage(order) {
     `Order ID: ${order.orderNum || order.id}`,
     `Outfit: ${order.outfit?.title || "Custom outfit"}`,
     `Price: Rs. ${Number(order.price || 0).toLocaleString("en-IN")}`,
+    "",
+    `*View & Print Invoice Slip:*`,
+    invoiceUrl,
     "",
     "Please visit Dhanvika Ethnic Choice Boutique to collect your order.",
     "",
