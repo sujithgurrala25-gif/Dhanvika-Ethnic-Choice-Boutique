@@ -14,6 +14,7 @@ import { createOrder } from "../services/orderService.js";
 import { buildWhatsAppOrderLink } from "../utils/whatsapp.js";
 import { generateInvoicePDF } from "../utils/pdfGenerator.js";
 import { compressImage } from "../utils/image.js";
+import { validateMeasurement } from "../utils/validation.js";
 
 const subCategoriesMap = {
   Blouse: ["Bridal Blouse", "Maggam Work Blouse", "Boat Neck Blouse", "Designer Blouse"],
@@ -70,6 +71,7 @@ export default function AddOfflineOrder() {
   const [whatsAppStatus, setWhatsAppStatus] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [offlineErrors, setOfflineErrors] = useState({});
 
   const handleImageUpload = (event) => {
     const file = event.target.files?.[0];
@@ -121,6 +123,8 @@ export default function AddOfflineOrder() {
         subCategory: firstSub,
         price: subCategoryPriceMap[firstSub] || "",
       });
+      setOfflineMeasurements({});
+      setOfflineErrors({});
     } else if (name === "subCategory") {
       setOfflineForm({
         ...offlineForm,
@@ -132,6 +136,26 @@ export default function AddOfflineOrder() {
     }
   }
 
+  const handleToggleOfflineMeasurements = (checked) => {
+    setShowOfflineMeasurements(checked);
+    if (!checked) {
+      setOfflineMeasurements({});
+      setOfflineErrors({});
+    }
+  };
+
+  const handleUnitChange = (newUnit) => {
+    setOfflineUnit(newUnit);
+    setOfflineErrors({});
+  };
+
+  const handleMeasurementChange = (key, value) => {
+    setOfflineMeasurements(prev => ({ ...prev, [key]: value }));
+    if (offlineErrors[key]) {
+      setOfflineErrors(prev => ({ ...prev, [key]: "" }));
+    }
+  };
+
   function resetOfflineForm() {
     setOfflineForm({
       ...emptyOfflineForm,
@@ -140,6 +164,7 @@ export default function AddOfflineOrder() {
     setOfflineMeasurements({});
     setOfflineUnit("Inches");
     setShowOfflineMeasurements(false);
+    setOfflineErrors({});
   }
 
   async function handleOfflineSubmit(event) {
@@ -173,6 +198,25 @@ export default function AddOfflineOrder() {
       });
       setIsSubmitting(false);
       return;
+    }
+
+    if (showOfflineMeasurements) {
+      const nextErrors = {};
+      offlineFields.forEach((field) => {
+        const errMsg = validateMeasurement(field.key, offlineMeasurements[field.key], offlineUnit);
+        if (errMsg) {
+          nextErrors[field.key] = errMsg;
+        }
+      });
+      if (Object.keys(nextErrors).length > 0) {
+        setOfflineErrors(nextErrors);
+        setWhatsAppStatus({
+          type: "error",
+          message: "Please correct the measurement errors before saving.",
+        });
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     try {
@@ -525,7 +569,7 @@ export default function AddOfflineOrder() {
               <input
                 type="checkbox"
                 checked={showOfflineMeasurements}
-                onChange={(e) => setShowOfflineMeasurements(e.target.checked)}
+                onChange={(e) => handleToggleOfflineMeasurements(e.target.checked)}
                 className="rounded border-plum/20 text-plum focus:ring-plum h-4 w-4"
               />
               Include Custom Measurements
@@ -542,7 +586,7 @@ export default function AddOfflineOrder() {
                       <button
                         key={item}
                         type="button"
-                        onClick={() => setOfflineUnit(item)}
+                        onClick={() => handleUnitChange(item)}
                         className={`rounded px-3 py-1 text-xs font-bold transition ${
                           offlineUnit === item
                             ? "bg-plum text-white shadow-sm"
@@ -557,23 +601,28 @@ export default function AddOfflineOrder() {
 
                 <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {offlineFields.map((field) => (
-                    <label key={field.key} className="grid gap-1.5 text-xs font-bold text-plum">
-                      {field.name}
+                    <div key={field.key} className="grid gap-1.5">
+                      <label htmlFor={`offline-${field.key}`} className="text-xs font-bold text-plum">
+                        {field.name}
+                      </label>
                       <input
-                        className="input-field py-1.5 text-sm"
+                        id={`offline-${field.key}`}
+                        className={`input-field py-1.5 text-sm ${
+                          offlineErrors[field.key] ? "border-rose focus:ring-rose" : ""
+                        }`}
                         type="number"
                         min="0"
                         step="0.1"
                         placeholder={`in ${offlineUnit}`}
                         value={offlineMeasurements[field.key] || ""}
-                        onChange={(e) =>
-                          setOfflineMeasurements({
-                            ...offlineMeasurements,
-                            [field.key]: e.target.value,
-                          })
-                        }
+                        onChange={(e) => handleMeasurementChange(field.key, e.target.value)}
                       />
-                    </label>
+                      {offlineErrors[field.key] && (
+                        <p className="text-[10px] font-bold text-rose">
+                          {offlineErrors[field.key]}
+                        </p>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

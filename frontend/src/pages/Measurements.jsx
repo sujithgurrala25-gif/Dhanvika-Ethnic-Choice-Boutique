@@ -9,6 +9,7 @@ import {
   measurementFieldsByOutfit,
 } from "../utils/data.js";
 import { getDraft, saveDraft } from "../utils/storage.js";
+import { validateMeasurement } from "../utils/validation.js";
 
 export default function Measurements() {
   const { user } = useAuth();
@@ -42,11 +43,9 @@ export default function Measurements() {
   function validate() {
     const nextErrors = {};
     fields.forEach((field) => {
-      const value = Number(measurements[field.key]);
-      if (!measurements[field.key]) {
-        nextErrors[field.key] = "Required";
-      } else if (Number.isNaN(value) || value <= 0) {
-        nextErrors[field.key] = "Enter a valid number";
+      const errMsg = validateMeasurement(field.key, measurements[field.key], unit);
+      if (errMsg) {
+        nextErrors[field.key] = errMsg;
       }
     });
     setErrors(nextErrors);
